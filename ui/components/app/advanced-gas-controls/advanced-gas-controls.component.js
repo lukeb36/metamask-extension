@@ -12,7 +12,7 @@ import FormField from '../../ui/form-field';
 
 export default function AdvancedGasControls({
   isGasEstimatesLoading,
-  estimateToUse = 'high',
+  estimateToUse,
   gasFeeEstimates,
 }) {
   const t = useContext(I18nContext);
