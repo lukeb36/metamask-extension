@@ -1,5 +1,4 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useState, useContext, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 import Button from '../../ui/button';
@@ -18,13 +17,7 @@ import AdvancedGasControls from '../advanced-gas-controls/advanced-gas-controls.
 import ActionableMessage from '../../ui/actionable-message/actionable-message';
 
 import { I18nContext } from '../../../contexts/i18n';
-import { useGasFeeEstimates } from '../../../hooks/useGasFeeEstimates';
-
-import { getShouldShowFiat } from '../../../selectors';
-import { useUserPreferencedCurrency } from '../../../hooks/useUserPreferencedCurrency';
-import { useCurrencyDisplay } from '../../../hooks/useCurrencyDisplay';
-import { PRIMARY, SECONDARY } from '../../../helpers/constants/common';
-import { decGWEIToHexWEI } from '../../../helpers/utils/conversions.util';
+import { useGasFeeInputs } from '../../../hooks/useGasFeeInputs';
 
 export default function EditGasDisplay({
   alwaysShowForm,
@@ -36,12 +29,6 @@ export default function EditGasDisplay({
   defaultEstimateToUse = 'medium',
 }) {
   const t = useContext(I18nContext);
-
-  const {
-    isGasEstimatesLoading,
-    gasFeeEstimates,
-    gasEstimateType,
-  } = useGasFeeEstimates();
 
   const [warning] = useState(null);
   const [error, setError] = useState(null);
@@ -55,42 +42,39 @@ export default function EditGasDisplay({
   const requireDappAcknowledgement = Boolean(
     dappSuggestedGasFee && !dappSuggestedGasFeeAcknowledged,
   );
-  const [estimateToUse, setEstimateToUse] = useState(defaultEstimateToUse);
 
-  const [maxPriorityFee, setMaxPriorityFee] = useState(
-    gasFeeEstimates?.[estimateToUse]?.suggestedMaxPriorityFeePerGas,
-  );
-  const [maxFee, setMaxFee] = useState(
-    gasFeeEstimates?.[estimateToUse]?.suggestedMaxFeePerGas,
-  );
   const [maxPriorityFeeError, setMaxPriorityFeeError] = useState(null);
   const [maxFeeError, setMaxFeeError] = useState(null);
 
-  const [gasLimit, setGasLimit] = useState(21000);
-  const [gasPrice, setGasPrice] = useState(0);
-
-  const prevIsGasEstimatesLoading = useRef(true);
-  useEffect(() => {
-    if (
-      prevIsGasEstimatesLoading.current === true &&
-      isGasEstimatesLoading === false &&
-      estimateToUse
-    ) {
-      setMaxPriorityFee(
-        gasFeeEstimates?.[estimateToUse]?.suggestedMaxPriorityFeePerGas,
-      );
-      setMaxFee(gasFeeEstimates?.[estimateToUse]?.suggestedMaxFeePerGas);
-    }
-  }, [isGasEstimatesLoading, estimateToUse, gasFeeEstimates]);
+  const {
+    maxPriorityFeePerGas,
+    setMaxPriorityFeePerGas,
+    maxPriorityFeePerGasFiat,
+    maxFeePerGas,
+    setMaxFeePerGas,
+    maxFeePerGasFiat,
+    maxFeePerGasPrimary,
+    bannerTotal,
+    isGasEstimatesLoading,
+    gasFeeEstimates,
+    gasEstimateType,
+    gasPrice,
+    setGasPrice,
+    gasLimit,
+    setGasLimit,
+    estimateToUse,
+    setEstimateToUse,
+  } = useGasFeeInputs(defaultEstimateToUse);
 
   // Validation for the maxPriorityFee and maxFee fields
   useEffect(() => {
     const isMaxPriorityFeeError =
       !isGasEstimatesLoading &&
-      maxPriorityFee < gasFeeEstimates?.low?.suggestedMaxPriorityFeePerGas;
+      maxPriorityFeePerGas <
+        gasFeeEstimates?.low?.suggestedMaxPriorityFeePerGas;
     const isMaxFeeError =
       !isGasEstimatesLoading &&
-      maxFee < gasFeeEstimates?.low?.suggestedMaxFeePerGas;
+      maxFeePerGas < gasFeeEstimates?.low?.suggestedMaxFeePerGas;
 
     setMaxPriorityFeeError(
       isMaxPriorityFeeError ? t('editGasMaxPriorityFeeLow') : null,
@@ -99,57 +83,13 @@ export default function EditGasDisplay({
     setError(
       isMaxPriorityFeeError || isMaxFeeError ? t('editGasTooLow') : null,
     );
-  }, [maxPriorityFee, gasFeeEstimates, maxFee, isGasEstimatesLoading, t]);
-
-  const { currency, numberOfDecimals } = useUserPreferencedCurrency(SECONDARY);
-  const {
-    currency: primaryCurrency,
-    numberOfDecimals: primaryNumberOfDecimals,
-  } = useUserPreferencedCurrency(PRIMARY);
-  const showFiat = useSelector(getShouldShowFiat);
-
-  const [, maxPriorityParts] = useCurrencyDisplay(
-    decGWEIToHexWEI(maxPriorityFee * gasLimit),
-    {
-      numberOfDecimals,
-      currency,
-    },
-  );
-  const maxPriorityFeeFiat = showFiat ? maxPriorityParts.value : '';
-
-  const maxFeeCalculation = decGWEIToHexWEI(maxFee * gasLimit);
-  const [, maxFeeParts] = useCurrencyDisplay(maxFeeCalculation, {
-    numberOfDecimals,
-    currency,
-  });
-  const maxFeeFiat = maxFeeParts.value;
-  const [maxFeePrimary] = useCurrencyDisplay(maxFeeCalculation, {
-    numberOfDecimals: primaryNumberOfDecimals,
-    currency: primaryCurrency,
-  });
-
-  // The big number should be `(estimatedBaseFee + (customMaxPriorityFeePerGas || selectedFeeEstimate.suggestedMaxPriorityFeePerGas)) * gasLimit` and then converted to fiat
-  const [, bannerTotalParts] = useCurrencyDisplay(
-    decGWEIToHexWEI(
-      (Number(gasFeeEstimates.estimatedBaseFee) +
-        (Number(maxPriorityFee) ||
-          Number(gasFeeEstimates?.[estimateToUse]?.suggestedMaxFeePerGas))) *
-        gasLimit,
-    ),
-    {
-      numberOfDecimals,
-      currency,
-    },
-  );
-  const bannerTotal = bannerTotalParts.value;
-
-  const [, { value: legacyBannerTotal }] = useCurrencyDisplay(
-    decGWEIToHexWEI(Number(gasPrice) * Number(gasLimit)),
-    {
-      numberOfDecimals,
-      currency,
-    },
-  );
+  }, [
+    maxPriorityFeePerGas,
+    gasFeeEstimates,
+    maxFeePerGas,
+    isGasEstimatesLoading,
+    t,
+  ]);
 
   return (
     <div className="edit-gas-display">
@@ -187,7 +127,7 @@ export default function EditGasDisplay({
           </div>
         )}
         <TransactionTotalBanner
-          total={process.env.SHOW_EIP_1559_UI ? bannerTotal : legacyBannerTotal}
+          total={bannerTotal}
           detail={
             process.env.SHOW_EIP_1559_UI &&
             t('editGasTotalBannerSubtitle', [
@@ -196,10 +136,10 @@ export default function EditGasDisplay({
                 tag="span"
                 key="secondary"
               >
-                {maxFeeFiat}
+                {maxFeePerGasFiat}
               </Typography>,
               <Typography tag="span" key="primary">
-                {maxFeePrimary}
+                {maxFeePerGasPrimary}
               </Typography>,
             ])
           }
@@ -247,10 +187,10 @@ export default function EditGasDisplay({
             selectedValue={estimateToUse}
             onChange={(value) => {
               setEstimateToUse(value);
-              setMaxPriorityFee(
+              setMaxPriorityFeePerGas(
                 gasFeeEstimates?.[value]?.suggestedMaxPriorityFeePerGas,
               );
-              setMaxFee(gasFeeEstimates?.[value]?.suggestedMaxFeePerGas);
+              setMaxFeePerGas(gasFeeEstimates?.[value]?.suggestedMaxFeePerGas);
             }}
           />
         )}
@@ -278,14 +218,14 @@ export default function EditGasDisplay({
             }}
             gasLimit={gasLimit}
             setGasLimit={setGasLimit}
-            maxPriorityFee={maxPriorityFee}
-            setMaxPriorityFee={setMaxPriorityFee}
-            maxFee={maxFee}
-            setMaxFee={setMaxFee}
+            maxPriorityFee={maxPriorityFeePerGas}
+            setMaxPriorityFee={setMaxPriorityFeePerGas}
+            maxFee={maxFeePerGas}
+            setMaxFee={setMaxFeePerGas}
             gasPrice={gasPrice}
             setGasPrice={setGasPrice}
-            maxPriorityFeeFiat={maxPriorityFeeFiat}
-            maxFeeFiat={showFiat ? maxFeeFiat : ''}
+            maxPriorityFeeFiat={maxPriorityFeePerGasFiat}
+            maxFeeFiat={maxFeePerGasFiat}
             maxPriorityFeeError={maxPriorityFeeError}
             maxFeeError={maxFeeError}
           />

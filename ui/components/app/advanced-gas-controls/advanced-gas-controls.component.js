@@ -78,6 +78,7 @@ export default function AdvancedGasControls({
             }}
             value={maxPriorityFee}
             detailText={maxPriorityFeeFiat}
+            numeric
             titleDetail={
               suggestedValues.maxPriorityFeePerGas && (
                 <>
@@ -147,7 +148,10 @@ export default function AdvancedGasControls({
           <FormField
             titleText={t('gasPrice')}
             titleUnit="(GWEI)"
-            onChange={setGasPrice}
+            onChange={(value) => {
+              setGasPrice(value);
+              onManualChange?.();
+            }}
             tooltipText={t('editGasPriceTooltip')}
             value={gasPrice}
             numeric
