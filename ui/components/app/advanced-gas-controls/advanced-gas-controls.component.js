@@ -9,12 +9,14 @@ import {
   COLORS,
 } from '../../../helpers/constants/design-system';
 import FormField from '../../ui/form-field';
+import { GAS_ESTIMATE_TYPES } from '../../../../shared/constants/gas';
 
 const DEFAULT_ESTIMATES_LEVEL = 'medium';
 
 export default function AdvancedGasControls({
   estimateToUse,
   gasFeeEstimates,
+  gasEstimateType,
   maxPriorityFee,
   maxFee,
   setMaxPriorityFee,
@@ -31,10 +33,28 @@ export default function AdvancedGasControls({
 }) {
   const t = useContext(I18nContext);
 
-  const suggestedMaxPriorityFeePerGas =
-    gasFeeEstimates?.[estimateToUse]?.suggestedMaxPriorityFeePerGas;
-  const suggestedMaxFeePerGas =
-    gasFeeEstimates?.[estimateToUse]?.suggestedMaxFeePerGas;
+  const suggestedValues = {};
+
+  switch (gasEstimateType) {
+    case GAS_ESTIMATE_TYPES.FEE_MARKET:
+      suggestedValues.maxPriorityFeePerGas =
+        gasFeeEstimates?.[estimateToUse]?.suggestedMaxPriorityFeePerGas;
+      suggestedValues.maxFeePerGas =
+        gasFeeEstimates?.[estimateToUse]?.suggestedMaxFeePerGas;
+      break;
+    case GAS_ESTIMATE_TYPES.LEGACY:
+      suggestedValues.gasPrice = gasFeeEstimates?.[estimateToUse];
+      break;
+    case GAS_ESTIMATE_TYPES.ETH_GASPRICE:
+      suggestedValues.gasPrice = gasFeeEstimates?.gasPrice;
+      break;
+    default:
+      break;
+  }
+
+  const showFeeMarketFields =
+    process.env.SHOW_EIP_1559_UI &&
+    gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET;
 
   return (
     <div className="advanced-gas-controls">
@@ -46,7 +66,7 @@ export default function AdvancedGasControls({
         numeric
         autoFocus
       />
-      {process.env.SHOW_EIP_1559_UI ? (
+      {showFeeMarketFields ? (
         <>
           <FormField
             titleText={t('maxPriorityFee')}
@@ -58,8 +78,8 @@ export default function AdvancedGasControls({
             }}
             value={maxPriorityFee}
             detailText={maxPriorityFeeFiat}
-            titleDetailText={
-              suggestedMaxPriorityFeePerGas && (
+            titleDetail={
+              suggestedValues.maxPriorityFeePerGas && (
                 <>
                   <Typography
                     tag="span"
@@ -96,7 +116,7 @@ export default function AdvancedGasControls({
             numeric
             detailText={maxFeeFiat}
             titleDetail={
-              suggestedMaxFeePerGas && (
+              suggestedValues.maxFeePerGas && (
                 <>
                   <Typography
                     tag="span"
@@ -131,6 +151,27 @@ export default function AdvancedGasControls({
             tooltipText={t('editGasPriceTooltip')}
             value={gasPrice}
             numeric
+            titleDetail={
+              suggestedValues.gasPrice && (
+                <>
+                  <Typography
+                    tag="span"
+                    color={COLORS.UI4}
+                    variant={TYPOGRAPHY.H8}
+                    fontWeight={FONT_WEIGHT.BOLD}
+                  >
+                    {t('gasFeeEstimate')}:
+                  </Typography>{' '}
+                  <Typography
+                    tag="span"
+                    color={COLORS.UI4}
+                    variant={TYPOGRAPHY.H8}
+                  >
+                    {suggestedValues.gasPrice}
+                  </Typography>
+                </>
+              )
+            }
           />
         </>
       )}
@@ -145,12 +186,18 @@ AdvancedGasControls.propTypes = {
       gasPrice: PropTypes.string,
     }),
     PropTypes.shape({
+      low: PropTypes.string,
+      medium: PropTypes.string,
+      high: PropTypes.string,
+    }),
+    PropTypes.shape({
       low: PropTypes.object,
       medium: PropTypes.object,
       high: PropTypes.object,
       estimatedBaseFee: PropTypes.string,
     }),
   ]),
+  gasEstimateType: PropTypes.oneOf(Object.values(GAS_ESTIMATE_TYPES)),
   setMaxPriorityFee: PropTypes.func,
   setMaxFee: PropTypes.func,
   maxPriorityFee: PropTypes.number,

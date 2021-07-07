@@ -37,7 +37,11 @@ export default function EditGasDisplay({
 }) {
   const t = useContext(I18nContext);
 
-  const { isGasEstimatesLoading, gasFeeEstimates } = useGasFeeEstimates();
+  const {
+    isGasEstimatesLoading,
+    gasFeeEstimates,
+    gasEstimateType,
+  } = useGasFeeEstimates();
 
   const [warning] = useState(null);
   const [error, setError] = useState(null);
@@ -266,6 +270,7 @@ export default function EditGasDisplay({
         {!requireDappAcknowledgement && (alwaysShowForm || showAdvancedForm) && (
           <AdvancedGasControls
             gasFeeEstimates={gasFeeEstimates}
+            gasEstimateType={gasEstimateType}
             estimateToUse={estimateToUse}
             isGasEstimatesLoading={isGasEstimatesLoading}
             onManualChange={() => {

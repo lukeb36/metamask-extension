@@ -1,14 +1,18 @@
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { GAS_ESTIMATE_TYPES } from '../../shared/constants/gas';
 import {
   getEstimatedGasFeeTimeBounds,
+  getGasEstimateType,
   getGasFeeEstimates,
-  isEIP1559Network,
 } from '../ducks/metamask/metamask';
-import { getGasFeeEstimatesAndStartPolling } from '../store/actions';
+import {
+  disconnectGasFeeEstimatePoller,
+  getGasFeeEstimatesAndStartPolling,
+} from '../store/actions';
 
 export function useGasFeeEstimates() {
-  const supportsEIP1559 = useSelector(isEIP1559Network);
+  const gasEstimateType = useSelector(getGasEstimateType);
   const gasFeeEstimates = useSelector(getGasFeeEstimates);
   const estimatedGasFeeTimeBounds = useSelector(getEstimatedGasFeeTimeBounds);
   useEffect(() => {
@@ -18,14 +22,17 @@ export function useGasFeeEstimates() {
     });
     return () => {
       if (pollToken) {
-        // TODO: unsubscribe from polling;
+        disconnectGasFeeEstimatePoller(pollToken);
       }
     };
   }, []);
 
-  const isGasEstimatesLoading = supportsEIP1559
-    ? typeof gasFeeEstimates?.estimatedBaseFee === 'undefined'
-    : typeof gasFeeEstimates?.gasPrice === 'undefined';
+  const isGasEstimatesLoading = gasEstimateType === GAS_ESTIMATE_TYPES.NONE;
 
-  return { gasFeeEstimates, estimatedGasFeeTimeBounds, isGasEstimatesLoading };
+  return {
+    gasFeeEstimates,
+    gasEstimateType,
+    estimatedGasFeeTimeBounds,
+    isGasEstimatesLoading,
+  };
 }
