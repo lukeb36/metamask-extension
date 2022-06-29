@@ -28,7 +28,7 @@ const expectedResults = [
   {
     title: 'Send',
     category: TRANSACTION_GROUP_CATEGORIES.SEND,
-    subtitle: 'To: 0xffe5...1a97',
+    subtitle: 'To: 0xffe...1a97',
     subtitleContainsOrigin: false,
     date: 'May 12, 2020',
     primaryCurrency: '-1 ETH',
@@ -42,7 +42,7 @@ const expectedResults = [
   {
     title: 'Send',
     category: TRANSACTION_GROUP_CATEGORIES.SEND,
-    subtitle: 'To: 0x0ccc...8848',
+    subtitle: 'To: 0x0cc...8848',
     subtitleContainsOrigin: false,
     date: 'May 12, 2020',
     primaryCurrency: '-2 ETH',
@@ -55,7 +55,7 @@ const expectedResults = [
   {
     title: 'Send',
     category: TRANSACTION_GROUP_CATEGORIES.SEND,
-    subtitle: 'To: 0xffe5...1a97',
+    subtitle: 'To: 0xffe...1a97',
     subtitleContainsOrigin: false,
     date: 'May 12, 2020',
     primaryCurrency: '-2 ETH',
@@ -68,7 +68,7 @@ const expectedResults = [
   {
     title: 'Receive',
     category: TRANSACTION_GROUP_CATEGORIES.RECEIVE,
-    subtitle: 'From: 0x31b9...4523',
+    subtitle: 'From: 0x31b...4523',
     subtitleContainsOrigin: false,
     date: 'May 12, 2020',
     primaryCurrency: '18.75 ETH',
@@ -81,7 +81,7 @@ const expectedResults = [
   {
     title: 'Receive',
     category: TRANSACTION_GROUP_CATEGORIES.RECEIVE,
-    subtitle: 'From: 0x9eca...a149',
+    subtitle: 'From: 0x9ec...a149',
     subtitleContainsOrigin: false,
     date: 'May 8, 2020',
     primaryCurrency: '0 ETH',
@@ -94,7 +94,7 @@ const expectedResults = [
   {
     title: 'Receive',
     category: TRANSACTION_GROUP_CATEGORIES.RECEIVE,
-    subtitle: 'From: 0xee01...febb',
+    subtitle: 'From: 0xee0...febb',
     subtitleContainsOrigin: false,
     date: 'May 24, 2020',
     primaryCurrency: '1 ETH',
@@ -117,6 +117,31 @@ const expectedResults = [
     isPending: false,
     displayedStatusKey: TRANSACTION_STATUSES.CONFIRMED,
   },
+  {
+    title: 'Contract Deployment',
+    category: TRANSACTION_GROUP_CATEGORIES.INTERACTION,
+    subtitle: 'metamask.github.io',
+    subtitleContainsOrigin: true,
+    date: 'May 12, 2020',
+    primaryCurrency: '-0 ETH',
+    senderAddress: '0xee014609ef9e09776ac5fe00bdbfef57bcdefebb',
+    recipientAddress: undefined,
+    secondaryCurrency: '-0 ETH',
+    isPending: false,
+    displayedStatusKey: TRANSACTION_STATUSES.CONFIRMED,
+  },
+  {
+    title: 'Safe Transfer From',
+    category: TRANSACTION_GROUP_CATEGORIES.SEND,
+    subtitle: 'To: 0xe7d...dd98',
+    subtitleContainsOrigin: true,
+    primaryCurrency: '-0 ETH',
+    senderAddress: '0x806627172af48bd5b0765d3449a7def80d6576ff',
+    recipientAddress: '0xe7d522230eff653bb0a9b4385f0be0815420dd98',
+    secondaryCurrency: '-0 ETH',
+    isPending: false,
+    displayedStatusKey: TRANSACTION_STATUSES.CONFIRMED,
+  },
 ];
 
 let useSelector, useI18nContext, useTokenFiatAmount;
@@ -132,6 +157,8 @@ const renderHookWithRouter = (cb, tokenAddress) => {
 };
 
 describe('useTransactionDisplayData', () => {
+  const dispatch = sinon.spy();
+
   beforeAll(() => {
     useSelector = sinon.stub(reactRedux, 'useSelector');
     useTokenFiatAmount = sinon.stub(
@@ -169,6 +196,7 @@ describe('useTransactionDisplayData', () => {
       }
       return null;
     });
+    sinon.stub(reactRedux, 'useDispatch').returns(dispatch);
   });
 
   afterAll(() => {

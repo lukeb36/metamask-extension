@@ -7,13 +7,14 @@ import {
   INITIALIZE_SEED_PHRASE_ROUTE,
 } from '../../../../helpers/constants/routes';
 import { exportAsFile } from '../../../../helpers/utils/util';
+import { EVENT } from '../../../../../shared/constants/metametrics';
 import DraggableSeed from './draggable-seed.component';
 
 const EMPTY_SEEDS = Array(12).fill(null);
 
 export default class ConfirmSeedPhrase extends PureComponent {
   static contextTypes = {
-    metricsEvent: PropTypes.func,
+    trackEvent: PropTypes.func,
     t: PropTypes.func,
   };
 
@@ -77,17 +78,18 @@ export default class ConfirmSeedPhrase extends PureComponent {
     }
 
     try {
-      this.context.metricsEvent({
-        eventOpts: {
-          category: 'Onboarding',
+      this.context.trackEvent({
+        category: EVENT.CATEGORIES.ONBOARDING,
+        event: 'Verify Complete',
+        properties: {
           action: 'Seed Phrase Setup',
-          name: 'Verify Complete',
+          legacy_event: true,
         },
       });
 
       setSeedPhraseBackedUp(true).then(async () => {
         initializeThreeBox();
-        history.push(INITIALIZE_END_OF_FLOW_ROUTE);
+        history.replace(INITIALIZE_END_OF_FLOW_ROUTE);
       });
     } catch (error) {
       console.error(error.message);

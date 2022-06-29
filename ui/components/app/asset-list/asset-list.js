@@ -1,43 +1,42 @@
-import React from 'react';
+import React, { useContext, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
-import { useHistory } from 'react-router-dom';
-import AddTokenButton from '../add-token-button';
+import ImportTokenLink from '../import-token-link';
 import TokenList from '../token-list';
-import { ADD_TOKEN_ROUTE } from '../../../helpers/constants/routes';
 import AssetListItem from '../asset-list-item';
 import { PRIMARY, SECONDARY } from '../../../helpers/constants/common';
-import { useMetricEvent } from '../../../hooks/useMetricEvent';
 import { useUserPreferencedCurrency } from '../../../hooks/useUserPreferencedCurrency';
 import {
-  getCurrentAccountWithSendEtherInfo,
+  getSelectedAccountCachedBalance,
   getShouldShowFiat,
   getNativeCurrencyImage,
+  getDetectedTokensInCurrentNetwork,
 } from '../../../selectors';
 import { getNativeCurrency } from '../../../ducks/metamask/metamask';
 import { useCurrencyDisplay } from '../../../hooks/useCurrencyDisplay';
+import Typography from '../../ui/typography/typography';
+import Box from '../../ui/box/box';
+import {
+  COLORS,
+  TYPOGRAPHY,
+  FONT_WEIGHT,
+  JUSTIFY_CONTENT,
+} from '../../../helpers/constants/design-system';
+import { useI18nContext } from '../../../hooks/useI18nContext';
+import { MetaMetricsContext } from '../../../contexts/metametrics';
+import { EVENT } from '../../../../shared/constants/metametrics';
+import DetectedToken from '../detected-token/detected-token';
+import DetectedTokensLink from './detetcted-tokens-link/detected-tokens-link';
 
 const AssetList = ({ onClickAsset }) => {
-  const history = useHistory();
-  const selectedAccountBalance = useSelector(
-    (state) => getCurrentAccountWithSendEtherInfo(state).balance,
-  );
+  const t = useI18nContext();
+
+  const [showDetectedTokens, setShowDetectedTokens] = useState(false);
+
+  const selectedAccountBalance = useSelector(getSelectedAccountCachedBalance);
   const nativeCurrency = useSelector(getNativeCurrency);
   const showFiat = useSelector(getShouldShowFiat);
-  const selectTokenEvent = useMetricEvent({
-    eventOpts: {
-      category: 'Navigation',
-      action: 'Token Menu',
-      name: 'Clicked Token',
-    },
-  });
-  const addTokenEvent = useMetricEvent({
-    eventOpts: {
-      category: 'Navigation',
-      action: 'Token Menu',
-      name: 'Clicked "Add Token"',
-    },
-  });
+  const trackEvent = useContext(MetaMetricsContext);
 
   const {
     currency: primaryCurrency,
@@ -65,6 +64,7 @@ const AssetList = ({ onClickAsset }) => {
   });
 
   const primaryTokenImage = useSelector(getNativeCurrencyImage);
+  const detectedTokens = useSelector(getDetectedTokensInCurrentNetwork) || [];
 
   return (
     <>
@@ -82,15 +82,36 @@ const AssetList = ({ onClickAsset }) => {
       <TokenList
         onTokenClick={(tokenAddress) => {
           onClickAsset(tokenAddress);
-          selectTokenEvent();
+          trackEvent({
+            event: 'Clicked Token',
+            category: EVENT.CATEGORIES.NAVIGATION,
+            properties: {
+              action: 'Token Menu',
+              legacy_event: true,
+            },
+          });
         }}
       />
-      <AddTokenButton
-        onClick={() => {
-          history.push(ADD_TOKEN_ROUTE);
-          addTokenEvent();
-        }}
-      />
+      {process.env.TOKEN_DETECTION_V2
+        ? detectedTokens.length > 0 && (
+            <DetectedTokensLink setShowDetectedTokens={setShowDetectedTokens} />
+          )
+        : null}
+      <Box marginTop={detectedTokens.length > 0 ? 0 : 4}>
+        <Box justifyContent={JUSTIFY_CONTENT.CENTER}>
+          <Typography
+            color={COLORS.TEXT_ALTERNATIVE}
+            variant={TYPOGRAPHY.H6}
+            fontWeight={FONT_WEIGHT.NORMAL}
+          >
+            {t('missingToken')}
+          </Typography>
+        </Box>
+        <ImportTokenLink />
+      </Box>
+      {showDetectedTokens && (
+        <DetectedToken setShowDetectedTokens={setShowDetectedTokens} />
+      )}
     </>
   );
 };

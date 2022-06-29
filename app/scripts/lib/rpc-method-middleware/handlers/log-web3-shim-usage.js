@@ -1,4 +1,5 @@
 import { MESSAGE_TYPE } from '../../../../../shared/constants/app';
+import { EVENT } from '../../../../../shared/constants/metametrics';
 
 /**
  * This RPC method is called by the inpage provider whenever it detects the
@@ -10,6 +11,11 @@ import { MESSAGE_TYPE } from '../../../../../shared/constants/app';
 const logWeb3ShimUsage = {
   methodNames: [MESSAGE_TYPE.LOG_WEB3_SHIM_USAGE],
   implementation: logWeb3ShimUsageHandler,
+  hookNames: {
+    sendMetrics: true,
+    getWeb3ShimUsageState: true,
+    setWeb3ShimUsageRecorded: true,
+  },
 };
 export default logWeb3ShimUsage;
 
@@ -43,7 +49,7 @@ function logWeb3ShimUsageHandler(
     sendMetrics(
       {
         event: `Website Accessed window.web3 Shim`,
-        category: 'inpage_provider',
+        category: EVENT.CATEGORIES.INPAGE_PROVIDER,
         referrer: {
           url: origin,
         },

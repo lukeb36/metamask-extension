@@ -7,6 +7,7 @@ import FileInput from 'react-simple-file-input';
 import * as actions from '../../../store/actions';
 import { getMetaMaskAccounts } from '../../../selectors';
 import Button from '../../../components/ui/button';
+import { EVENT } from '../../../../shared/constants/metametrics';
 import { getMostRecentOverviewPage } from '../../../ducks/history/history';
 
 const HELP_LINK =
@@ -28,7 +29,7 @@ class JsonImportSubview extends Component {
       <div className="new-account-import-form__json">
         <p>{this.context.t('usedByClients')}</p>
         <a
-          className="warning"
+          className="new-account-import-form__help-link"
           href={HELP_LINK}
           target="_blank"
           rel="noopener noreferrer"
@@ -57,7 +58,7 @@ class JsonImportSubview extends Component {
         />
         <div className="new-account-create-form__buttons">
           <Button
-            type="default"
+            type="secondary"
             large
             className="new-account-create-form__button"
             onClick={() => history.push(mostRecentOverviewPage)}
@@ -65,7 +66,7 @@ class JsonImportSubview extends Component {
             {this.context.t('cancel')}
           </Button>
           <Button
-            type="secondary"
+            type="primary"
             large
             className="new-account-create-form__button"
             onClick={() => this.createNewKeychain()}
@@ -102,9 +103,10 @@ class JsonImportSubview extends Component {
       setSelectedAddress,
     } = this.props;
     const { fileContents } = this.state;
+    const { t } = this.context;
 
     if (!fileContents) {
-      const message = this.context.t('needImportFile');
+      const message = t('needImportFile');
       displayWarning(message);
       return;
     }
@@ -115,21 +117,23 @@ class JsonImportSubview extends Component {
       .then(({ selectedAddress }) => {
         if (selectedAddress) {
           history.push(mostRecentOverviewPage);
-          this.context.metricsEvent({
-            eventOpts: {
-              category: 'Accounts',
+          this.context.trackEvent({
+            category: EVENT.CATEGORIES.ACCOUNTS,
+            event: 'Imported Account with JSON',
+            properties: {
               action: 'Import Account',
-              name: 'Imported Account with JSON',
+              legacy_event: true,
             },
           });
           displayWarning(null);
         } else {
-          displayWarning('Error importing account.');
-          this.context.metricsEvent({
-            eventOpts: {
-              category: 'Accounts',
+          displayWarning(t('importAccountError'));
+          this.context.trackEvent({
+            category: EVENT.CATEGORIES.ACCOUNTS,
+            event: 'Error importing JSON',
+            properties: {
               action: 'Import Account',
-              name: 'Error importing JSON',
+              legacy_event: true,
             },
           });
           setSelectedAddress(firstAddress);
@@ -178,7 +182,7 @@ const mapDispatchToProps = (dispatch) => {
 
 JsonImportSubview.contextTypes = {
   t: PropTypes.func,
-  metricsEvent: PropTypes.func,
+  trackEvent: PropTypes.func,
 };
 
 export default compose(

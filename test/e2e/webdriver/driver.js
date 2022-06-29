@@ -1,19 +1,23 @@
 const { promises: fs } = require('fs');
 const { strict: assert } = require('assert');
-const { until, error: webdriverError, By } = require('selenium-webdriver');
+const { until, error: webdriverError, By, Key } = require('selenium-webdriver');
 const cssToXPath = require('css-to-xpath');
 
 /**
  * Temporary workaround to patch selenium's element handle API with methods
  * that match the playwright API for Elements
+ *
  * @param {Object} element - Selenium Element
+ * @param driver
  * @returns {Object} modified Selenium Element
  */
 function wrapElementWithAPI(element, driver) {
   element.press = (key) => element.sendKeys(key);
   element.fill = async (input) => {
     // The 'fill' method in playwright replaces existing input
-    await element.clear();
+    await element.sendKeys(
+      Key.chord(driver.Key.MODIFIER, 'a', driver.Key.BACK_SPACE),
+    );
     await element.sendKeys(input);
   };
   element.waitForElementState = async (state, timeout) => {
@@ -29,10 +33,15 @@ function wrapElementWithAPI(element, driver) {
   return element;
 }
 
+/**
+ * For Selenium WebDriver API documentation, see:
+ * https://www.selenium.dev/selenium/docs/api/javascript/module/selenium-webdriver/index_exports_WebDriver.html
+ */
 class Driver {
   /**
    * @param {!ThenableWebDriver} driver - A {@code WebDriver} instance
    * @param {string} browser - The type of browser this driver is controlling
+   * @param extensionUrl
    * @param {number} timeout
    */
   constructor(driver, browser, extensionUrl, timeout = 10000) {
@@ -46,7 +55,19 @@ class Driver {
     this.Key = {
       BACK_SPACE: '\uE003',
       ENTER: '\uE007',
+      SPACE: '\uE00D',
+      CONTROL: '\uE009',
+      COMMAND: '\uE03D',
+      MODIFIER: process.platform === 'darwin' ? Key.COMMAND : Key.CONTROL,
     };
+  }
+
+  async executeAsyncScript(script, ...args) {
+    return this.driver.executeAsyncScript(script, args);
+  }
+
+  async executeScript(script, ...args) {
+    return this.driver.executeScript(script, args);
   }
 
   buildLocator(locator) {
@@ -233,6 +254,35 @@ class Driver {
     assert.ok(!dataTab, 'Found element that should not be present');
   }
 
+  async isElementPresent(element) {
+    try {
+      await this.findElement(element);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  /**
+   * Paste a string into a field.
+   *
+   * @param {string} element - The element locator.
+   * @param {string} contentToPaste - The content to paste.
+   */
+  async pasteIntoField(element, contentToPaste) {
+    // Throw if double-quote is present in content to paste
+    // so that we don't have to worry about escaping double-quotes
+    if (contentToPaste.includes('"')) {
+      throw new Error('Cannot paste content with double-quote');
+    }
+    // Click to focus the field
+    await this.clickElement(element);
+    await this.executeScript(
+      `navigator.clipboard.writeText("${contentToPaste}")`,
+    );
+    await this.fill(element, Key.chord(this.Key.MODIFIER, 'v'));
+  }
+
   // Navigation
 
   async navigate(page = Driver.PAGES.HOME) {
@@ -257,6 +307,10 @@ class Driver {
     await this.driver.switchTo().window(handle);
   }
 
+  async switchToFrame(element) {
+    await this.driver.switchTo().frame(element);
+  }
+
   async getAllWindowHandles() {
     return await this.driver.getAllWindowHandles();
   }
@@ -275,16 +329,27 @@ class Driver {
     throw new Error('waitUntilXWindowHandles timed out polling window handles');
   }
 
-  async switchToWindowWithTitle(title, windowHandles) {
-    // eslint-disable-next-line no-param-reassign
-    windowHandles = windowHandles || (await this.driver.getAllWindowHandles());
-
-    for (const handle of windowHandles) {
-      await this.driver.switchTo().window(handle);
-      const handleTitle = await this.driver.getTitle();
-      if (handleTitle === title) {
-        return handle;
+  async switchToWindowWithTitle(
+    title,
+    initialWindowHandles,
+    delayStep = 1000,
+    timeout = 5000,
+  ) {
+    let windowHandles =
+      initialWindowHandles || (await this.driver.getAllWindowHandles());
+    let timeElapsed = 0;
+    while (timeElapsed <= timeout) {
+      for (const handle of windowHandles) {
+        await this.driver.switchTo().window(handle);
+        const handleTitle = await this.driver.getTitle();
+        if (handleTitle === title) {
+          return handle;
+        }
       }
+      await this.delay(delayStep);
+      timeElapsed += delayStep;
+      // refresh the window handles
+      windowHandles = await this.driver.getAllWindowHandles();
     }
 
     throw new Error(`No window with title: ${title}`);
@@ -292,6 +357,7 @@ class Driver {
 
   /**
    * Closes all windows except those in the given list of exceptions
+   *
    * @param {Array<string>} exceptions - The list of window handle exceptions
    * @param {Array} [windowHandles] - The full list of window handles
    * @returns {Promise<void>}
@@ -335,7 +401,11 @@ class Driver {
     const ignoredLogTypes = ['WARNING'];
     const ignoredErrorMessages = [
       // Third-party Favicon 404s show up as errors
-      'favicon.ico - Failed to load resource: the server responded with a status of 404 (Not Found)',
+      'favicon.ico - Failed to load resource: the server responded with a status of 404',
+      // Sentry rate limiting
+      'Failed to load resource: the server responded with a status of 429',
+      // 4Byte
+      'Failed to load resource: the server responded with a status of 502 (Bad Gateway)',
     ];
     const browserLogs = await this.driver.manage().logs().get('browser');
     const errorEntries = browserLogs.filter(
@@ -377,6 +447,7 @@ function collectMetrics() {
 }
 
 Driver.PAGES = {
+  BACKGROUND: 'background',
   HOME: 'home',
   NOTIFICATION: 'notification',
   POPUP: 'popup',

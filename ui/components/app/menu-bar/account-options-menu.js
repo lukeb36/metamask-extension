@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import { useHistory } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -6,6 +6,7 @@ import { getAccountLink } from '@metamask/etherscan-link';
 
 import { showModal } from '../../../store/actions';
 import { CONNECTED_ROUTE } from '../../../helpers/constants/routes';
+import { getURLHostName } from '../../../helpers/utils/util';
 import { Menu, MenuItem } from '../../ui/menu';
 import {
   getCurrentChainId,
@@ -14,12 +15,10 @@ import {
   getSelectedIdentity,
 } from '../../../selectors';
 import { useI18nContext } from '../../../hooks/useI18nContext';
-import {
-  useMetricEvent,
-  useNewMetricEvent,
-} from '../../../hooks/useMetricEvent';
 import { getEnvironmentType } from '../../../../app/scripts/lib/util';
 import { ENVIRONMENT_TYPE_FULLSCREEN } from '../../../../shared/constants/app';
+import { EVENT } from '../../../../shared/constants/metametrics';
+import { MetaMetricsContext } from '../../../contexts/metametrics';
 
 export default function AccountOptionsMenu({ anchorElement, onClose }) {
   const t = useI18nContext();
@@ -32,39 +31,9 @@ export default function AccountOptionsMenu({ anchorElement, onClose }) {
   const selectedIdentity = useSelector(getSelectedIdentity);
   const { address } = selectedIdentity;
   const addressLink = getAccountLink(address, chainId, rpcPrefs);
-
-  const openFullscreenEvent = useMetricEvent({
-    eventOpts: {
-      category: 'Navigation',
-      action: 'Account Options',
-      name: 'Clicked Expand View',
-    },
-  });
-  const viewAccountDetailsEvent = useMetricEvent({
-    eventOpts: {
-      category: 'Navigation',
-      action: 'Account Options',
-      name: 'Viewed Account Details',
-    },
-  });
-
-  const openConnectedSitesEvent = useMetricEvent({
-    eventOpts: {
-      category: 'Navigation',
-      action: 'Account Options',
-      name: 'Opened Connected Sites',
-    },
-  });
-
-  const blockExplorerLinkClickedEvent = useNewMetricEvent({
-    category: 'Navigation',
-    event: 'Clicked Block Explorer Link',
-    properties: {
-      link_type: 'Account Tracker',
-      action: 'Account Options',
-      block_explorer_domain: addressLink ? new URL(addressLink)?.hostname : '',
-    },
-  });
+  const { blockExplorerUrl } = rpcPrefs;
+  const blockExplorerUrlSubTitle = getURLHostName(blockExplorerUrl);
+  const trackEvent = useContext(MetaMetricsContext);
 
   const isRemovable = keyring.type !== 'HD Key Tree';
 
@@ -74,10 +43,46 @@ export default function AccountOptionsMenu({ anchorElement, onClose }) {
       className="account-options-menu"
       onHide={onClose}
     >
+      <MenuItem
+        onClick={() => {
+          trackEvent({
+            event: 'Clicked Block Explorer Link',
+            category: EVENT.CATEGORIES.NAVIGATION,
+            properties: {
+              link_type: 'Account Tracker',
+              action: 'Account Options',
+              block_explorer_domain: getURLHostName(addressLink),
+            },
+          });
+          global.platform.openTab({
+            url: addressLink,
+          });
+          onClose();
+        }}
+        subtitle={
+          blockExplorerUrlSubTitle ? (
+            <span className="account-options-menu__explorer-origin">
+              {blockExplorerUrlSubTitle}
+            </span>
+          ) : null
+        }
+        iconClassName="fas fa-external-link-alt"
+      >
+        {rpcPrefs.blockExplorerUrl
+          ? t('viewinExplorer', [t('blockExplorerAccountAction')])
+          : t('viewOnEtherscan', [t('blockExplorerAccountAction')])}
+      </MenuItem>
       {getEnvironmentType() === ENVIRONMENT_TYPE_FULLSCREEN ? null : (
         <MenuItem
           onClick={() => {
-            openFullscreenEvent();
+            trackEvent({
+              event: 'Clicked Expand View',
+              category: EVENT.CATEGORIES.NAVIGATION,
+              properties: {
+                action: 'Account Options',
+                legacy_event: true,
+              },
+            });
             global.platform.openExtensionInBrowser();
             onClose();
           }}
@@ -90,7 +95,14 @@ export default function AccountOptionsMenu({ anchorElement, onClose }) {
         data-testid="account-options-menu__account-details"
         onClick={() => {
           dispatch(showModal({ name: 'ACCOUNT_DETAILS' }));
-          viewAccountDetailsEvent();
+          trackEvent({
+            event: 'Viewed Account Details',
+            category: EVENT.CATEGORIES.NAVIGATION,
+            properties: {
+              action: 'Account Options',
+              legacy_event: true,
+            },
+          });
           onClose();
         }}
         iconClassName="fas fa-qrcode"
@@ -98,32 +110,20 @@ export default function AccountOptionsMenu({ anchorElement, onClose }) {
         {t('accountDetails')}
       </MenuItem>
       <MenuItem
-        onClick={() => {
-          blockExplorerLinkClickedEvent();
-          global.platform.openTab({
-            url: addressLink,
-          });
-          onClose();
-        }}
-        subtitle={
-          rpcPrefs.blockExplorerUrl ? (
-            <span className="account-options-menu__explorer-origin">
-              {rpcPrefs.blockExplorerUrl.match(/^https?:\/\/(.+)/u)[1]}
-            </span>
-          ) : null
-        }
-        iconClassName="fas fa-external-link-alt"
-      >
-        {rpcPrefs.blockExplorerUrl ? t('viewinExplorer') : t('viewOnEtherscan')}
-      </MenuItem>
-      <MenuItem
         data-testid="account-options-menu__connected-sites"
         onClick={() => {
-          openConnectedSitesEvent();
+          trackEvent({
+            event: 'Opened Connected Sites',
+            category: EVENT.CATEGORIES.NAVIGATION,
+            properties: {
+              action: 'Account Options',
+              legacy_event: true,
+            },
+          });
           history.push(CONNECTED_ROUTE);
           onClose();
         }}
-        iconClassName="account-options-menu__connected-sites"
+        iconClassName="fa fa-bullseye"
       >
         {t('connectedSites')}
       </MenuItem>

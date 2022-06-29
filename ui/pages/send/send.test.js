@@ -3,11 +3,11 @@ import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
 
 import { useLocation } from 'react-router-dom';
-import { describe } from 'globalthis/implementation';
 import { initialState, SEND_STAGES } from '../../ducks/send';
 import { ensInitialState } from '../../ducks/ens';
 import { renderWithProvider } from '../../../test/jest';
 import { RINKEBY_CHAIN_ID } from '../../../shared/constants/network';
+import { GAS_ESTIMATE_TYPES } from '../../../shared/constants/gas';
 import Send from './send';
 
 const middleware = [thunk];
@@ -37,12 +37,26 @@ const baseStore = {
   send: initialState,
   ENS: ensInitialState,
   gas: {
-    basicEstimateStatus: 'READY',
-    basicEstimates: { slow: '0x0', average: '0x1', fast: '0x2' },
     customData: { limit: null, price: null },
   },
   history: { mostRecentOverviewPage: 'activity' },
   metamask: {
+    gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
+    gasFeeEstimates: {
+      low: '0',
+      medium: '1',
+      fast: '2',
+    },
+    selectedAddress: '0x0',
+    keyrings: [
+      {
+        type: 'HD Key Tree',
+        accounts: ['0x0'],
+      },
+    ],
+    networkDetails: {
+      EIPS: {},
+    },
     tokens: [],
     preferences: {
       useNativeCurrencyAsPrimaryCurrency: false,
@@ -64,7 +78,10 @@ const baseStore = {
     accounts: {
       '0x0': { balance: '0x0', address: '0x0' },
     },
-    identities: { '0x0': {} },
+    identities: { '0x0': { address: '0x0' } },
+  },
+  appState: {
+    sendInputCurrencySwitched: false,
   },
 };
 
@@ -81,12 +98,6 @@ describe('Send Page', () => {
           }),
           expect.objectContaining({
             type: 'send/initializeSendState/pending',
-          }),
-          expect.objectContaining({
-            type: 'metamask/gas/BASIC_GAS_ESTIMATE_STATUS',
-          }),
-          expect.objectContaining({
-            type: 'metamask/gas/SET_ESTIMATE_SOURCE',
           }),
         ]),
       );
@@ -106,12 +117,6 @@ describe('Send Page', () => {
             type: 'send/initializeSendState/pending',
           }),
           expect.objectContaining({
-            type: 'metamask/gas/BASIC_GAS_ESTIMATE_STATUS',
-          }),
-          expect.objectContaining({
-            type: 'metamask/gas/SET_ESTIMATE_SOURCE',
-          }),
-          expect.objectContaining({
             type: 'UI_MODAL_OPEN',
             payload: { name: 'QR_SCANNER' },
           }),
@@ -121,11 +126,11 @@ describe('Send Page', () => {
     });
   });
 
-  describe('Add Recipient Flow', () => {
-    it('should render the header with Add Recipient displayed', () => {
+  describe('Send Flow', () => {
+    it('should render the header with Send to displayed', () => {
       const store = configureMockStore(middleware)(baseStore);
       const { getByText } = renderWithProvider(<Send />, store);
-      expect(getByText('Add Recipient')).toBeTruthy();
+      expect(getByText('Send to')).toBeTruthy();
     });
 
     it('should render the EnsInput field', () => {
@@ -143,7 +148,7 @@ describe('Send Page', () => {
     });
   });
 
-  describe('Send and Edit Flow', () => {
+  describe('Send and Edit Flow (draft)', () => {
     it('should render the header with Send displayed', () => {
       const store = configureMockStore(middleware)({
         ...baseStore,

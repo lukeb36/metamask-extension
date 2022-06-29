@@ -2,7 +2,9 @@ import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import { I18nContext } from '../../../../contexts/i18n';
-import { useNewMetricEvent } from '../../../../hooks/useMetricEvent';
+import { getURLHostName } from '../../../../helpers/utils/util';
+import { MetaMetricsContext } from '../../../../contexts/metametrics';
+import { EVENT } from '../../../../../shared/constants/metametrics';
 
 export default function ViewOnEtherScanLink({
   txHash,
@@ -10,18 +12,7 @@ export default function ViewOnEtherScanLink({
   isCustomBlockExplorerUrl,
 }) {
   const t = useContext(I18nContext);
-
-  const blockExplorerLinkClickedEvent = useNewMetricEvent({
-    category: 'Swaps',
-    event: 'Clicked Block Explorer Link',
-    properties: {
-      link_type: 'Transaction Block Explorer',
-      action: 'Swap Transaction',
-      block_explorer_domain: blockExplorerUrl
-        ? new URL(blockExplorerUrl)?.hostname
-        : '',
-    },
-  });
+  const trackEvent = useContext(MetaMetricsContext);
 
   return (
     <div
@@ -30,13 +21,24 @@ export default function ViewOnEtherScanLink({
         'awaiting-swap__view-on-etherscan--invisible': !txHash,
       })}
       onClick={() => {
-        blockExplorerLinkClickedEvent();
+        trackEvent({
+          event: 'Clicked Block Explorer Link',
+          category: EVENT.CATEGORIES.SWAPS,
+          properties: {
+            link_type: 'Transaction Block Explorer',
+            action: 'Swap Transaction',
+            block_explorer_domain: getURLHostName(blockExplorerUrl),
+          },
+        });
         global.platform.openTab({ url: blockExplorerUrl });
       }}
     >
       {isCustomBlockExplorerUrl
-        ? t('viewOnCustomBlockExplorer', [new URL(blockExplorerUrl).hostname])
-        : t('viewOnEtherscan')}
+        ? t('viewOnCustomBlockExplorer', [
+            t('blockExplorerSwapAction'),
+            getURLHostName(blockExplorerUrl),
+          ])
+        : t('viewOnEtherscan', [t('blockExplorerSwapAction')])}
     </div>
   );
 }

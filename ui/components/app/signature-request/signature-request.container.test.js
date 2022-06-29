@@ -32,6 +32,7 @@ describe('Signature Request', () => {
     history: {
       push: sinon.spy(),
     },
+    hardwareWalletRequiresConnection: false,
     clearConfirmTransaction: sinon.spy(),
     cancelMessage: sinon.spy(),
     cancel: sinon.stub().resolves(),
@@ -64,7 +65,7 @@ describe('Signature Request', () => {
   });
 
   it('cancel', () => {
-    const cancelButton = wrapper.find('button.btn-default');
+    const cancelButton = wrapper.find('button.btn-secondary');
     cancelButton.simulate('click');
 
     expect(props.cancel.calledOnce).toStrictEqual(true);

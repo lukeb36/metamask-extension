@@ -80,9 +80,9 @@ export default class Tooltip extends PureComponent {
         size={size}
         offset={offset}
         style={style}
-        title={title}
+        title={disabled ? '' : title}
         trigger={trigger}
-        theme={theme}
+        theme={`tippy-tooltip--mm-custom ${theme}`} // Required for correct theming
         tabIndex={tabIndex || 0}
         tag={tag}
       >

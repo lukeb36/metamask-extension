@@ -8,6 +8,7 @@ const AssetOptions = ({
   onRemove,
   onClickBlockExplorer,
   onViewAccountDetails,
+  onViewTokenDetails,
   tokenSymbol,
   isNativeAsset,
   isEthNetwork,
@@ -50,7 +51,9 @@ const AssetOptions = ({
               onClickBlockExplorer();
             }}
           >
-            {isEthNetwork ? t('viewOnEtherscan') : t('viewinExplorer')}
+            {isEthNetwork
+              ? t('viewOnEtherscan', [t('blockExplorerAssetAction')])
+              : t('viewinExplorer', [t('blockExplorerAssetAction')])}
           </MenuItem>
           {isNativeAsset ? null : (
             <MenuItem
@@ -64,19 +67,57 @@ const AssetOptions = ({
               {t('hideTokenSymbol', [tokenSymbol])}
             </MenuItem>
           )}
+          {isNativeAsset ? null : (
+            <MenuItem
+              iconClassName="fas fa-info-circle asset-options__icon"
+              data-testid="asset-options__token-details"
+              onClick={() => {
+                setAssetOptionsOpen(false);
+                onViewTokenDetails();
+              }}
+            >
+              {t('tokenDetails')}
+            </MenuItem>
+          )}
         </Menu>
       ) : null}
     </>
   );
 };
 
+const isNotFunc = (p) => {
+  return typeof p !== 'function';
+};
+
 AssetOptions.propTypes = {
   isEthNetwork: PropTypes.bool,
   isNativeAsset: PropTypes.bool,
-  onRemove: PropTypes.func.isRequired,
   onClickBlockExplorer: PropTypes.func.isRequired,
   onViewAccountDetails: PropTypes.func.isRequired,
-  tokenSymbol: PropTypes.string,
+  onRemove: (props) => {
+    if (props.isNativeAsset === false && isNotFunc(props.onRemove)) {
+      throw new Error(
+        'When isNativeAsset is true, onRemove is a required prop',
+      );
+    }
+  },
+  onViewTokenDetails: (props) => {
+    if (props.isNativeAsset === false && isNotFunc(props.onViewTokenDetails)) {
+      throw new Error(
+        'When isNativeAsset is true, onViewTokenDetails is a required prop',
+      );
+    }
+  },
+  tokenSymbol: (props) => {
+    if (
+      props.isNativeAsset === false &&
+      typeof props.tokenSymbol !== 'string'
+    ) {
+      throw new Error(
+        'When isNativeAsset is true, tokenSymbol is a required prop',
+      );
+    }
+  },
 };
 
 export default AssetOptions;

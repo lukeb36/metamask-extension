@@ -1,6 +1,4 @@
 import { MethodRegistry } from 'eth-method-registry';
-import abi from 'human-standard-token-abi';
-import { ethers } from 'ethers';
 import log from 'loglevel';
 
 import { addHexPrefix } from '../../../app/scripts/lib/util';
@@ -8,11 +6,11 @@ import {
   TRANSACTION_TYPES,
   TRANSACTION_GROUP_STATUSES,
   TRANSACTION_STATUSES,
+  TRANSACTION_ENVELOPE_TYPES,
 } from '../../../shared/constants/transaction';
 import { addCurrencies } from '../../../shared/modules/conversion.utils';
+import { readAddressAsContract } from '../../../shared/modules/contract-utils';
 import fetchWithCache from './fetch-with-cache';
-
-const hstInterface = new ethers.utils.Interface(abi);
 
 /**
  * @typedef EthersContractCall
@@ -27,18 +25,6 @@ const hstInterface = new ethers.utils.Interface(abi);
  * representation of the function.
  */
 
-/**
- * @returns {EthersContractCall | undefined}
- */
-export function getTokenData(data) {
-  try {
-    return hstInterface.parseTransaction({ data });
-  } catch (error) {
-    log.debug('Failed to parse transaction data.', error, data);
-    return undefined;
-  }
-}
-
 async function getMethodFrom4Byte(fourBytePrefix) {
   const fourByteResponse = await fetchWithCache(
     `https://www.4byte.directory/api/v1/signatures/?hex_signature=${fourBytePrefix}`,
@@ -49,22 +35,34 @@ async function getMethodFrom4Byte(fourBytePrefix) {
       mode: 'cors',
     },
   );
-
-  if (fourByteResponse.count === 1) {
-    return fourByteResponse.results[0].text_signature;
-  }
-  return null;
+  fourByteResponse.results.sort((a, b) => {
+    return new Date(a.created_at).getTime() < new Date(b.created_at).getTime()
+      ? -1
+      : 1;
+  });
+  return fourByteResponse.results[0].text_signature;
 }
+
+function pickShortest(registrySig, fourByteSig) {
+  if (!registrySig) {
+    return fourByteSig;
+  } else if (!fourByteSig) {
+    return registrySig;
+  }
+  return fourByteSig.length < registrySig.length ? fourByteSig : registrySig;
+}
+
 let registry;
 
 /**
  * Attempts to return the method data from the MethodRegistry library, the message registry library and the token abi, in that order of preference
+ *
  * @param {string} fourBytePrefix - The prefix from the method code associated with the data
  * @returns {Object}
  */
 export async function getMethodDataAsync(fourBytePrefix) {
   try {
-    const fourByteSig = getMethodFrom4Byte(fourBytePrefix).catch((e) => {
+    const fourByteSig = await getMethodFrom4Byte(fourBytePrefix).catch((e) => {
       log.error(e);
       return null;
     });
@@ -73,11 +71,12 @@ export async function getMethodDataAsync(fourBytePrefix) {
       registry = new MethodRegistry({ provider: global.ethereumProvider });
     }
 
-    let sig = await registry.lookup(fourBytePrefix);
+    const registrySig = await registry.lookup(fourBytePrefix).catch((e) => {
+      log.error(e);
+      return null;
+    });
 
-    if (!sig) {
-      sig = await fourByteSig;
-    }
+    const sig = pickShortest(registrySig, fourByteSig);
 
     if (!sig) {
       return {};
@@ -118,6 +117,7 @@ export function isTokenMethodAction(type) {
     TRANSACTION_TYPES.TOKEN_METHOD_TRANSFER,
     TRANSACTION_TYPES.TOKEN_METHOD_APPROVE,
     TRANSACTION_TYPES.TOKEN_METHOD_TRANSFER_FROM,
+    TRANSACTION_TYPES.TOKEN_METHOD_SAFE_TRANSFER_FROM,
   ].includes(type);
 }
 
@@ -143,10 +143,8 @@ export function getLatestSubmittedTxWithNonce(
 }
 
 export async function isSmartContractAddress(address) {
-  const code = await global.eth.getCode(address);
-  // Geth will return '0x', and ganache-core v2.2.1 will return '0x0'
-  const codeIsEmpty = !code || code === '0x' || code === '0x0';
-  return !codeIsEmpty;
+  const { isContractCode } = await readAddressAsContract(global.eth, address);
+  return isContractCode;
 }
 
 export function sumHexes(...args) {
@@ -161,9 +159,14 @@ export function sumHexes(...args) {
   return addHexPrefix(total);
 }
 
+export function isLegacyTransaction(txParams) {
+  return txParams?.type === TRANSACTION_ENVELOPE_TYPES.LEGACY;
+}
+
 /**
  * Returns a status key for a transaction. Requires parsing the txMeta.txReceipt on top of
  * txMeta.status because txMeta.status does not reflect on-chain errors.
+ *
  * @param {Object} transaction - The txMeta object of a transaction.
  * @param {Object} transaction.txReceipt - The transaction receipt.
  * @returns {string}
@@ -194,11 +197,13 @@ export function getStatusKey(transaction) {
  * Returns a title for the given transaction category.
  *
  * This will throw an error if the transaction category is unrecognized and no default is provided.
- * @param {function} t - The translation function
+ *
+ * @param {Function} t - The translation function
  * @param {TRANSACTION_TYPES[keyof TRANSACTION_TYPES]} type - The transaction type constant
+ * @param {string} nativeCurrency - The native currency of the currently selected network
  * @returns {string} The transaction category title
  */
-export function getTransactionTypeTitle(t, type) {
+export function getTransactionTypeTitle(t, type, nativeCurrency = 'ETH') {
   switch (type) {
     case TRANSACTION_TYPES.TOKEN_METHOD_TRANSFER: {
       return t('transfer');
@@ -206,11 +211,14 @@ export function getTransactionTypeTitle(t, type) {
     case TRANSACTION_TYPES.TOKEN_METHOD_TRANSFER_FROM: {
       return t('transferFrom');
     }
+    case TRANSACTION_TYPES.TOKEN_METHOD_SAFE_TRANSFER_FROM: {
+      return t('safeTransferFrom');
+    }
     case TRANSACTION_TYPES.TOKEN_METHOD_APPROVE: {
       return t('approve');
     }
-    case TRANSACTION_TYPES.SENT_ETHER: {
-      return t('sentEther');
+    case TRANSACTION_TYPES.SIMPLE_SEND: {
+      return t('sendingNativeAsset', [nativeCurrency]);
     }
     case TRANSACTION_TYPES.CONTRACT_INTERACTION: {
       return t('contractInteraction');

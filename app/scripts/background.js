@@ -2,31 +2,37 @@
  * @file The entry point for the web extension singleton process.
  */
 
-// polyfills
-import 'abortcontroller-polyfill/dist/polyfill-patch-fetch';
-
 import endOfStream from 'end-of-stream';
 import pump from 'pump';
 import debounce from 'debounce-stream';
 import log from 'loglevel';
-import extension from 'extensionizer';
+import browser from 'webextension-polyfill';
 import { storeAsStream, storeTransformStream } from '@metamask/obs-store';
 import PortStream from 'extension-port-stream';
 import { captureException } from '@sentry/browser';
 
+import { ethErrors } from 'eth-rpc-errors';
 import {
   ENVIRONMENT_TYPE_POPUP,
   ENVIRONMENT_TYPE_NOTIFICATION,
   ENVIRONMENT_TYPE_FULLSCREEN,
+  PLATFORM_FIREFOX,
 } from '../../shared/constants/app';
 import { SECOND } from '../../shared/constants/time';
+import {
+  REJECT_NOTFICIATION_CLOSE,
+  REJECT_NOTFICIATION_CLOSE_SIG,
+} from '../../shared/constants/metametrics';
+import { isManifestV3 } from '../../shared/modules/mv3.utils';
 import migrations from './migrations';
 import Migrator from './lib/migrator';
 import ExtensionPlatform from './platforms/extension';
 import LocalStore from './lib/local-store';
 import ReadOnlyNetworkStore from './lib/network-store';
 import createStreamSink from './lib/createStreamSink';
-import NotificationManager from './lib/notification-manager';
+import NotificationManager, {
+  NOTIFICATION_MANAGER_EVENTS,
+} from './lib/notification-manager';
 import MetamaskController, {
   METAMASK_CONTROLLER_EVENTS,
 } from './metamask-controller';
@@ -34,12 +40,21 @@ import rawFirstTimeState from './first-time-state';
 import getFirstPreferredLangCode from './lib/get-first-preferred-lang-code';
 import getObjStructure from './lib/getObjStructure';
 import setupEnsIpfsResolver from './lib/ens-ipfs/setup';
+import { getPlatform } from './lib/util';
 /* eslint-enable import/first */
 
 const { sentry } = global;
 const firstTimeState = { ...rawFirstTimeState };
 
-log.setDefaultLevel(process.env.METAMASK_DEBUG ? 'debug' : 'warn');
+const metamaskInternalProcessHash = {
+  [ENVIRONMENT_TYPE_POPUP]: true,
+  [ENVIRONMENT_TYPE_NOTIFICATION]: true,
+  [ENVIRONMENT_TYPE_FULLSCREEN]: true,
+};
+
+const metamaskBlockedPorts = ['trezor-connect'];
+
+log.setDefaultLevel(process.env.METAMASK_DEBUG ? 'debug' : 'info');
 
 const platform = new ExtensionPlatform();
 
@@ -53,7 +68,7 @@ const openMetamaskTabsIDs = {};
 const requestAccountTabIds = {};
 
 // state persistence
-const inTest = process.env.IN_TEST === 'true';
+const inTest = process.env.IN_TEST;
 const localStore = inTest ? new ReadOnlyNetworkStore() : new LocalStore();
 let versionedData;
 
@@ -61,8 +76,29 @@ if (inTest || process.env.METAMASK_DEBUG) {
   global.metamaskGetState = localStore.get.bind(localStore);
 }
 
-// initialization flow
-initialize().catch(log.error);
+const phishingPageUrl = new URL(process.env.PHISHING_WARNING_PAGE_URL);
+
+const ONE_SECOND_IN_MILLISECONDS = 1_000;
+// Timeout for initializing phishing warning page.
+const PHISHING_WARNING_PAGE_TIMEOUT = ONE_SECOND_IN_MILLISECONDS;
+
+/**
+ * In case of MV3 we attach a "onConnect" event listener as soon as the application is initialised.
+ * Reason is that in case of MV3 a delay in doing this was resulting in missing first connect event after service worker is re-activated.
+ */
+
+const initApp = async (remotePort) => {
+  browser.runtime.onConnect.removeListener(initApp);
+  await initialize(remotePort);
+  log.info('MetaMask initialization complete.');
+};
+
+if (isManifestV3()) {
+  browser.runtime.onConnect.addListener(initApp);
+} else {
+  // initialization flow
+  initialize().catch(log.error);
+}
 
 /**
  * @typedef {import('../../shared/constants/transaction').TransactionMeta} TransactionMeta
@@ -70,6 +106,7 @@ initialize().catch(log.error);
 
 /**
  * The data emitted from the MetaMaskController.store EventEmitter, also used to initialize the MetaMaskController. Available in UI on React state as state.metamask.
+ *
  * @typedef MetaMaskState
  * @property {boolean} isInitialized - Whether the first vault has been created.
  * @property {boolean} isUnlocked - Whether the vault is currently decrypted and accounts are available for selection.
@@ -115,18 +152,87 @@ initialize().catch(log.error);
 /**
  * @typedef VersionedData
  * @property {MetaMaskState} data - The data emitted from MetaMask controller, or used to initialize it.
- * @property {Number} version - The latest migration version that has been run.
+ * @property {number} version - The latest migration version that has been run.
  */
 
 /**
  * Initializes the MetaMask controller, and sets up all platform configuration.
+ *
+ * @param {string} remotePort - remote application port connecting to extension.
  * @returns {Promise} Setup complete.
  */
-async function initialize() {
+async function initialize(remotePort) {
   const initState = await loadStateFromPersistence();
   const initLangCode = await getFirstPreferredLangCode();
-  await setupController(initState, initLangCode);
-  log.debug('MetaMask initialization complete.');
+  await setupController(initState, initLangCode, remotePort);
+  await loadPhishingWarningPage();
+  log.info('MetaMask initialization complete.');
+}
+
+/**
+ * An error thrown if the phishing warning page takes too long to load.
+ */
+class PhishingWarningPageTimeoutError extends Error {
+  constructor() {
+    super('Timeout failed');
+  }
+}
+
+/**
+ * Load the phishing warning page temporarily to ensure the service
+ * worker has been registered, so that the warning page works offline.
+ */
+async function loadPhishingWarningPage() {
+  let iframe;
+  try {
+    const extensionStartupPhishingPageUrl = new URL(
+      process.env.PHISHING_WARNING_PAGE_URL,
+    );
+    // The `extensionStartup` hash signals to the phishing warning page that it should not bother
+    // setting up streams for user interaction. Otherwise this page load would cause a console
+    // error.
+    extensionStartupPhishingPageUrl.hash = '#extensionStartup';
+
+    iframe = window.document.createElement('iframe');
+    iframe.setAttribute('src', extensionStartupPhishingPageUrl.href);
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+
+    // Create "deferred Promise" to allow passing resolve/reject to event handlers
+    let deferredResolve;
+    let deferredReject;
+    const loadComplete = new Promise((resolve, reject) => {
+      deferredResolve = resolve;
+      deferredReject = reject;
+    });
+
+    // The load event is emitted once loading has completed, even if the loading failed.
+    // If loading failed we can't do anything about it, so we don't need to check.
+    iframe.addEventListener('load', deferredResolve);
+
+    // This step initiates the page loading.
+    window.document.body.appendChild(iframe);
+
+    // This timeout ensures that this iframe gets cleaned up in a reasonable
+    // timeframe, and ensures that the "initialization complete" message
+    // doesn't get delayed too long.
+    setTimeout(
+      () => deferredReject(new PhishingWarningPageTimeoutError()),
+      PHISHING_WARNING_PAGE_TIMEOUT,
+    );
+    await loadComplete;
+  } catch (error) {
+    if (error instanceof PhishingWarningPageTimeoutError) {
+      console.warn(
+        'Phishing warning page timeout; page not guaraneteed to work offline.',
+      );
+    } else {
+      console.error('Failed to initialize phishing warning page', error);
+    }
+  } finally {
+    if (iframe) {
+      iframe.remove();
+    }
+  }
 }
 
 //
@@ -136,6 +242,7 @@ async function initialize() {
 /**
  * Loads any stored data, prioritizing the latest storage strategy.
  * Migrates that data schema in case it was last loaded on an older version.
+ *
  * @returns {Promise<MetaMaskState>} Last data emitted from previous instance of MetaMask.
  */
 async function loadStateFromPersistence() {
@@ -196,9 +303,10 @@ async function loadStateFromPersistence() {
  *
  * @param {Object} initState - The initial state to start the controller with, matches the state that is emitted from the controller.
  * @param {string} initLangCode - The region code for the language preferred by the current user.
+ * @param {string} remoteSourcePort - remote application port connecting to extension.
  * @returns {Promise} After setup is complete.
  */
-function setupController(initState, initLangCode) {
+function setupController(initState, initLangCode, remoteSourcePort) {
   //
   // MetaMask Controller
   //
@@ -214,7 +322,8 @@ function setupController(initState, initLangCode) {
     initLangCode,
     // platform specific api
     platform,
-    extension,
+    notificationManager,
+    browser,
     getRequestAccountTabIds: () => {
       return requestAccountTabIds;
     },
@@ -246,6 +355,7 @@ function setupController(initState, initLangCode) {
 
   /**
    * Assigns the given state to the versioned object (with metadata), and returns that.
+   *
    * @param {Object} state - The state object as emitted by the MetaMaskController.
    * @returns {VersionedData} The state object wrapped in an object that includes a metadata key.
    */
@@ -283,16 +393,12 @@ function setupController(initState, initLangCode) {
   //
   // connect to other contexts
   //
-  extension.runtime.onConnect.addListener(connectRemote);
-  extension.runtime.onConnectExternal.addListener(connectExternal);
+  if (isManifestV3() && remoteSourcePort) {
+    connectRemote(remoteSourcePort);
+  }
 
-  const metamaskInternalProcessHash = {
-    [ENVIRONMENT_TYPE_POPUP]: true,
-    [ENVIRONMENT_TYPE_NOTIFICATION]: true,
-    [ENVIRONMENT_TYPE_FULLSCREEN]: true,
-  };
-
-  const metamaskBlockedPorts = ['trezor-connect'];
+  browser.runtime.onConnect.addListener(connectRemote);
+  browser.runtime.onConnectExternal.addListener(connectExternal);
 
   const isClientOpenStatus = () => {
     return (
@@ -302,8 +408,27 @@ function setupController(initState, initLangCode) {
     );
   };
 
+  const onCloseEnvironmentInstances = (isClientOpen, environmentType) => {
+    // if all instances of metamask are closed we call a method on the controller to stop gasFeeController polling
+    if (isClientOpen === false) {
+      controller.onClientClosed();
+      // otherwise we want to only remove the polling tokens for the environment type that has closed
+    } else {
+      // in the case of fullscreen environment a user might have multiple tabs open so we don't want to disconnect all of
+      // its corresponding polling tokens unless all tabs are closed.
+      if (
+        environmentType === ENVIRONMENT_TYPE_FULLSCREEN &&
+        Boolean(Object.keys(openMetamaskTabsIDs).length)
+      ) {
+        return;
+      }
+      controller.onEnvironmentTypeClosed(environmentType);
+    }
+  };
+
   /**
    * A runtime.Port object, as provided by the browser:
+   *
    * @see https://developer.mozilla.org/en-US/Add-ons/WebExtensions/API/runtime/Port
    * @typedef Port
    * @type Object
@@ -312,15 +437,29 @@ function setupController(initState, initLangCode) {
   /**
    * Connects a Port to the MetaMask controller via a multiplexed duplex stream.
    * This method identifies trusted (MetaMask) interfaces, and connects them differently from untrusted (web pages).
+   *
    * @param {Port} remotePort - The port provided by a new context.
    */
   function connectRemote(remotePort) {
     const processName = remotePort.name;
-    const isMetaMaskInternalProcess = metamaskInternalProcessHash[processName];
 
     if (metamaskBlockedPorts.includes(remotePort.name)) {
       return;
     }
+
+    let isMetaMaskInternalProcess = false;
+    const sourcePlatform = getPlatform();
+
+    if (sourcePlatform === PLATFORM_FIREFOX) {
+      isMetaMaskInternalProcess = metamaskInternalProcessHash[processName];
+    } else {
+      isMetaMaskInternalProcess =
+        remotePort.sender.origin === `chrome-extension://${browser.runtime.id}`;
+    }
+
+    const senderUrl = remotePort.sender?.url
+      ? new URL(remotePort.sender.url)
+      : null;
 
     if (isMetaMaskInternalProcess) {
       const portStream = new PortStream(remotePort);
@@ -328,12 +467,20 @@ function setupController(initState, initLangCode) {
       controller.isClientOpen = true;
       controller.setupTrustedCommunication(portStream, remotePort.sender);
 
+      if (isManifestV3()) {
+        // Message below if captured by UI code in app/scripts/ui.js which will trigger UI initialisation
+        // This ensures that UI is initialised only after background is ready
+        // It fixes the issue of blank screen coming when extension is loaded, the issue is very frequent in MV3
+        remotePort.postMessage({ name: 'CONNECTION_READY' });
+      }
+
       if (processName === ENVIRONMENT_TYPE_POPUP) {
         popupIsOpen = true;
-
         endOfStream(portStream, () => {
           popupIsOpen = false;
-          controller.isClientOpen = isClientOpenStatus();
+          const isClientOpen = isClientOpenStatus();
+          controller.isClientOpen = isClientOpen;
+          onCloseEnvironmentInstances(isClientOpen, ENVIRONMENT_TYPE_POPUP);
         });
       }
 
@@ -342,7 +489,12 @@ function setupController(initState, initLangCode) {
 
         endOfStream(portStream, () => {
           notificationIsOpen = false;
-          controller.isClientOpen = isClientOpenStatus();
+          const isClientOpen = isClientOpenStatus();
+          controller.isClientOpen = isClientOpen;
+          onCloseEnvironmentInstances(
+            isClientOpen,
+            ENVIRONMENT_TYPE_NOTIFICATION,
+          );
         });
       }
 
@@ -352,9 +504,23 @@ function setupController(initState, initLangCode) {
 
         endOfStream(portStream, () => {
           delete openMetamaskTabsIDs[tabId];
-          controller.isClientOpen = isClientOpenStatus();
+          const isClientOpen = isClientOpenStatus();
+          controller.isClientOpen = isClientOpen;
+          onCloseEnvironmentInstances(
+            isClientOpen,
+            ENVIRONMENT_TYPE_FULLSCREEN,
+          );
         });
       }
+    } else if (
+      senderUrl &&
+      senderUrl.origin === phishingPageUrl.origin &&
+      senderUrl.pathname === phishingPageUrl.pathname
+    ) {
+      const portStream = new PortStream(remotePort);
+      controller.setupPhishingCommunication({
+        connectionStream: portStream,
+      });
     } else {
       if (remotePort.sender && remotePort.sender.tab && remotePort.sender.url) {
         const tabId = remotePort.sender.tab.id;
@@ -374,7 +540,10 @@ function setupController(initState, initLangCode) {
   // communication with page or other extension
   function connectExternal(remotePort) {
     const portStream = new PortStream(remotePort);
-    controller.setupUntrustedCommunication(portStream, remotePort.sender);
+    controller.setupUntrustedCommunication({
+      connectionStream: portStream,
+      sender: remotePort.sender,
+    });
   }
 
   //
@@ -406,9 +575,13 @@ function setupController(initState, initLangCode) {
     METAMASK_CONTROLLER_EVENTS.UPDATE_BADGE,
     updateBadge,
   );
-  controller.approvalController.subscribe(updateBadge);
   controller.appStateController.on(
     METAMASK_CONTROLLER_EVENTS.UPDATE_BADGE,
+    updateBadge,
+  );
+
+  controller.controllerMessenger.subscribe(
+    METAMASK_CONTROLLER_EVENTS.APPROVAL_STATE_CHANGE,
     updateBadge,
   );
 
@@ -418,6 +591,21 @@ function setupController(initState, initLangCode) {
    */
   function updateBadge() {
     let label = '';
+    const count = getUnapprovedTransactionCount();
+    if (count) {
+      label = String(count);
+    }
+    // browserAction has been replaced by action in MV3
+    if (isManifestV3()) {
+      browser.action.setBadgeText({ text: label });
+      browser.action.setBadgeBackgroundColor({ color: '#037DD6' });
+    } else {
+      browser.browserAction.setBadgeText({ text: label });
+      browser.browserAction.setBadgeBackgroundColor({ color: '#037DD6' });
+    }
+  }
+
+  function getUnapprovedTransactionCount() {
     const unapprovedTxCount = controller.txController.getUnapprovedTxCount();
     const { unapprovedMsgCount } = controller.messageManager;
     const { unapprovedPersonalMsgCount } = controller.personalMessageManager;
@@ -429,7 +617,7 @@ function setupController(initState, initLangCode) {
     const pendingApprovalCount = controller.approvalController.getTotalApprovalCount();
     const waitingForUnlockCount =
       controller.appStateController.waitingForUnlock.length;
-    const count =
+    return (
       unapprovedTxCount +
       unapprovedMsgCount +
       unapprovedPersonalMsgCount +
@@ -437,12 +625,74 @@ function setupController(initState, initLangCode) {
       unapprovedEncryptionPublicKeyMsgCount +
       unapprovedTypedMessagesCount +
       pendingApprovalCount +
-      waitingForUnlockCount;
-    if (count) {
-      label = String(count);
-    }
-    extension.browserAction.setBadgeText({ text: label });
-    extension.browserAction.setBadgeBackgroundColor({ color: '#037DD6' });
+      waitingForUnlockCount
+    );
+  }
+
+  notificationManager.on(
+    NOTIFICATION_MANAGER_EVENTS.POPUP_CLOSED,
+    ({ automaticallyClosed }) => {
+      if (!automaticallyClosed) {
+        rejectUnapprovedNotifications();
+      } else if (getUnapprovedTransactionCount() > 0) {
+        triggerUi();
+      }
+    },
+  );
+
+  function rejectUnapprovedNotifications() {
+    Object.keys(
+      controller.txController.txStateManager.getUnapprovedTxList(),
+    ).forEach((txId) =>
+      controller.txController.txStateManager.setTxStatusRejected(txId),
+    );
+    controller.messageManager.messages
+      .filter((msg) => msg.status === 'unapproved')
+      .forEach((tx) =>
+        controller.messageManager.rejectMsg(
+          tx.id,
+          REJECT_NOTFICIATION_CLOSE_SIG,
+        ),
+      );
+    controller.personalMessageManager.messages
+      .filter((msg) => msg.status === 'unapproved')
+      .forEach((tx) =>
+        controller.personalMessageManager.rejectMsg(
+          tx.id,
+          REJECT_NOTFICIATION_CLOSE_SIG,
+        ),
+      );
+    controller.typedMessageManager.messages
+      .filter((msg) => msg.status === 'unapproved')
+      .forEach((tx) =>
+        controller.typedMessageManager.rejectMsg(
+          tx.id,
+          REJECT_NOTFICIATION_CLOSE_SIG,
+        ),
+      );
+    controller.decryptMessageManager.messages
+      .filter((msg) => msg.status === 'unapproved')
+      .forEach((tx) =>
+        controller.decryptMessageManager.rejectMsg(
+          tx.id,
+          REJECT_NOTFICIATION_CLOSE,
+        ),
+      );
+    controller.encryptionPublicKeyManager.messages
+      .filter((msg) => msg.status === 'unapproved')
+      .forEach((tx) =>
+        controller.encryptionPublicKeyManager.rejectMsg(
+          tx.id,
+          REJECT_NOTFICIATION_CLOSE,
+        ),
+      );
+
+    // Finally, reject all approvals managed by the ApprovalController
+    controller.approvalController.clear(
+      ethErrors.provider.userRejectedRequest(),
+    );
+
+    updateBadge();
   }
 
   return Promise.resolve();
@@ -497,7 +747,7 @@ async function openPopup() {
 }
 
 // On first install, open a new tab with MetaMask
-extension.runtime.onInstalled.addListener(({ reason }) => {
+browser.runtime.onInstalled.addListener(({ reason }) => {
   if (
     reason === 'install' &&
     !(process.env.METAMASK_DEBUG || process.env.IN_TEST)

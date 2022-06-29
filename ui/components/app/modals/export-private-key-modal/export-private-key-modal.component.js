@@ -4,7 +4,6 @@ import React, { Component } from 'react';
 
 import { stripHexPrefix } from 'ethereumjs-util';
 import copyToClipboard from 'copy-to-clipboard';
-import ReadOnlyInput from '../../../ui/readonly-input';
 import Button from '../../../ui/button';
 import AccountModalContainer from '../account-modal-container';
 import { toChecksumHexAddress } from '../../../../../shared/modules/hexstring-utils';
@@ -78,13 +77,12 @@ export default class ExportPrivateKeyModal extends Component {
     }
 
     return (
-      <ReadOnlyInput
-        wrapperClass="export-private-key-modal__password-display-wrapper"
-        inputClass="export-private-key-modal__password-display-textarea"
-        textarea
-        value={plainKey}
+      <div
+        className="export-private-key-modal__private-key-display"
         onClick={() => copyToClipboard(plainKey)}
-      />
+      >
+        {plainKey}
+      </div>
     );
   }
 
@@ -93,7 +91,7 @@ export default class ExportPrivateKeyModal extends Component {
       <div className="export-private-key-modal__buttons">
         {!privateKey && (
           <Button
-            type="default"
+            type="secondary"
             large
             className="export-private-key-modal__button export-private-key-modal__button--cancel"
             onClick={() => hideModal()}
@@ -104,7 +102,7 @@ export default class ExportPrivateKeyModal extends Component {
         {privateKey ? (
           <Button
             onClick={() => hideModal()}
-            type="secondary"
+            type="primary"
             large
             className="export-private-key-modal__button"
           >
@@ -115,7 +113,7 @@ export default class ExportPrivateKeyModal extends Component {
             onClick={() =>
               this.exportAccountAndGetPrivateKey(this.state.password, address)
             }
-            type="secondary"
+            type="primary"
             large
             className="export-private-key-modal__button"
             disabled={!this.state.password}
@@ -147,10 +145,9 @@ export default class ExportPrivateKeyModal extends Component {
         backButtonAction={() => showAccountDetailModal()}
       >
         <span className="export-private-key-modal__account-name">{name}</span>
-        <ReadOnlyInput
-          wrapperClass="ellip-address-wrapper"
-          value={toChecksumHexAddress(address)}
-        />
+        <div className="ellip-address-wrapper">
+          {toChecksumHexAddress(address)}
+        </div>
         <div className="export-private-key-modal__divider" />
         <span className="export-private-key-modal__body-title">
           {this.context.t('showPrivateKeys')}

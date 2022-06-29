@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import EventEmitter from 'events';
 import { ComposedStore, ObservableStore } from '@metamask/obs-store';
 import { JsonRpcEngine } from 'json-rpc-engine';
-import providerFromEngine from 'eth-json-rpc-middleware/providerFromEngine';
+import { providerFromEngine } from 'eth-json-rpc-middleware';
 import log from 'loglevel';
 import {
   createSwappableProxy,
@@ -18,6 +18,7 @@ import {
   MAINNET_CHAIN_ID,
   RINKEBY_CHAIN_ID,
   INFURA_BLOCKED_KEY,
+  TEST_NETWORK_TICKER_MAP,
 } from '../../../../shared/constants/network';
 import { SECOND } from '../../../../shared/constants/time';
 import {
@@ -33,7 +34,7 @@ const env = process.env.METAMASK_ENV;
 const fetchWithTimeout = getFetchWithTimeout(SECOND * 30);
 
 let defaultProviderConfigOpts;
-if (process.env.IN_TEST === 'true') {
+if (process.env.IN_TEST) {
   defaultProviderConfigOpts = {
     type: NETWORK_TYPE_RPC,
     rpcUrl: 'http://localhost:8545',
@@ -41,7 +42,11 @@ if (process.env.IN_TEST === 'true') {
     nickname: 'Localhost 8545',
   };
 } else if (process.env.METAMASK_DEBUG || env === 'test') {
-  defaultProviderConfigOpts = { type: RINKEBY, chainId: RINKEBY_CHAIN_ID };
+  defaultProviderConfigOpts = {
+    type: RINKEBY,
+    chainId: RINKEBY_CHAIN_ID,
+    ticker: TEST_NETWORK_TICKER_MAP.rinkeby,
+  };
 } else {
   defaultProviderConfigOpts = { type: MAINNET, chainId: MAINNET_CHAIN_ID };
 }
@@ -110,8 +115,7 @@ export default class NetworkController extends EventEmitter {
    * Sets the Infura project ID
    *
    * @param {string} projectId - The Infura project ID
-   * @throws {Error} if the project ID is not a valid string
-   * @return {void}
+   * @throws {Error} If the project ID is not a valid string.
    */
   setInfuraProjectId(projectId) {
     if (!projectId || typeof projectId !== 'string') {
@@ -137,6 +141,7 @@ export default class NetworkController extends EventEmitter {
 
   /**
    * Method to return the latest block for the current network
+   *
    * @returns {Object} Block header
    */
   getLatestBlock() {
@@ -158,6 +163,7 @@ export default class NetworkController extends EventEmitter {
   /**
    * Method to check if the block header contains fields that indicate EIP 1559
    * support (baseFeePerGas).
+   *
    * @returns {Promise<boolean>} true if current network supports EIP 1559
    */
   async getEIP1559Compatibility() {
@@ -166,7 +172,8 @@ export default class NetworkController extends EventEmitter {
       return EIPS[1559];
     }
     const latestBlock = await this.getLatestBlock();
-    const supportsEIP1559 = latestBlock.baseFeePerGas !== undefined;
+    const supportsEIP1559 =
+      latestBlock && latestBlock.baseFeePerGas !== undefined;
     this.setNetworkEIPSupport(1559, supportsEIP1559);
     return supportsEIP1559;
   }
@@ -188,6 +195,7 @@ export default class NetworkController extends EventEmitter {
 
   /**
    * Set EIP support indication in the networkDetails store
+   *
    * @param {number} EIPNumber - The number of the EIP to mark support for
    * @param {boolean} isSupported - True if the EIP is supported
    */
@@ -293,12 +301,12 @@ export default class NetworkController extends EventEmitter {
       INFURA_PROVIDER_TYPES.includes(type),
       `Unknown Infura provider type "${type}".`,
     );
-    const { chainId } = NETWORK_TYPE_TO_ID_MAP[type];
+    const { chainId, ticker } = NETWORK_TYPE_TO_ID_MAP[type];
     this.setProviderConfig({
       type,
       rpcUrl: '',
       chainId,
-      ticker: 'ETH',
+      ticker: ticker ?? 'ETH',
       nickname: '',
     });
   }
@@ -309,6 +317,8 @@ export default class NetworkController extends EventEmitter {
 
   /**
    * Sets the provider config and switches the network.
+   *
+   * @param config
    */
   setProviderConfig(config) {
     this.previousProviderStore.updateState(this.getProviderConfig());
@@ -429,7 +439,7 @@ export default class NetworkController extends EventEmitter {
   }
 
   _setProviderAndBlockTracker({ provider, blockTracker }) {
-    // update or intialize proxies
+    // update or initialize proxies
     if (this._providerProxy) {
       this._providerProxy.setTarget(provider);
     } else {

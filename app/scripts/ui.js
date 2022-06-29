@@ -1,9 +1,11 @@
 // polyfills
-import 'abortcontroller-polyfill/dist/polyfill-patch-fetch';
 import '@formatjs/intl-relativetimeformat/polyfill';
 
+// dev only, "react-devtools" import is skipped in prod builds
+import 'react-devtools';
+
 import PortStream from 'extension-port-stream';
-import extension from 'extensionizer';
+import browser from 'webextension-polyfill';
 
 import Eth from 'ethjs';
 import EthQuery from 'eth-query';
@@ -14,6 +16,9 @@ import {
   ENVIRONMENT_TYPE_FULLSCREEN,
   ENVIRONMENT_TYPE_POPUP,
 } from '../../shared/constants/app';
+import { isManifestV3 } from '../../shared/modules/mv3.utils';
+import { SUPPORT_LINK } from '../../ui/helpers/constants/common';
+import { getErrorHtml } from '../../ui/helpers/utils/error-utils';
 import ExtensionPlatform from './platforms/extension';
 import { setupMultiplex } from './lib/stream-utils';
 import { getEnvironmentType } from './lib/util';
@@ -22,6 +27,21 @@ import metaRPCClientFactory from './lib/metaRPCClientFactory';
 start().catch(log.error);
 
 async function start() {
+  async function displayCriticalError(container, err, metamaskState) {
+    const html = await getErrorHtml(SUPPORT_LINK, metamaskState);
+
+    container.innerHTML = html;
+
+    const button = document.getElementById('critical-error-button');
+
+    button.addEventListener('click', (_) => {
+      browser.runtime.reload();
+    });
+
+    log.error(err.stack);
+    throw err;
+  }
+
   // create platform global
   global.platform = new ExtensionPlatform();
 
@@ -29,25 +49,32 @@ async function start() {
   const windowType = getEnvironmentType();
 
   // setup stream to background
-  const extensionPort = extension.runtime.connect({ name: windowType });
+  const extensionPort = browser.runtime.connect({ name: windowType });
+
   const connectionStream = new PortStream(extensionPort);
 
   const activeTab = await queryCurrentActiveTab(windowType);
-  initializeUiWithTab(activeTab);
 
-  function displayCriticalError(container, err) {
-    container.innerHTML =
-      '<div class="critical-error">The MetaMask app failed to load: please open and close MetaMask again to restart.</div>';
-    container.style.height = '80px';
-    log.error(err.stack);
-    throw err;
+  /**
+   * In case of MV3 the issue of blank screen was very frequent, it is caused by UI initialising before background is ready to send state.
+   * Code below ensures that UI is rendered only after background is ready.
+   */
+  if (isManifestV3()) {
+    extensionPort.onMessage.addListener((message) => {
+      if (message?.name === 'CONNECTION_READY') {
+        initializeUiWithTab(activeTab);
+      }
+    });
+  } else {
+    initializeUiWithTab(activeTab);
   }
 
   function initializeUiWithTab(tab) {
     const container = document.getElementById('app-content');
     initializeUi(tab, container, connectionStream, (err, store) => {
       if (err) {
-        displayCriticalError(container, err);
+        // if there's an error, store will be = metamaskState
+        displayCriticalError(container, err, store);
         return;
       }
 
@@ -70,7 +97,7 @@ async function queryCurrentActiveTab(windowType) {
       return;
     }
 
-    extension.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
       const [activeTab] = tabs;
       const { id, title, url } = activeTab;
       const { origin, protocol } = url ? new URL(url) : {};
@@ -88,7 +115,7 @@ async function queryCurrentActiveTab(windowType) {
 function initializeUi(activeTab, container, connectionStream, cb) {
   connectToAccountManager(connectionStream, (err, backgroundConnection) => {
     if (err) {
-      cb(err);
+      cb(err, null);
       return;
     }
 

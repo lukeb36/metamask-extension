@@ -10,66 +10,44 @@ import {
   SEND_ROUTE,
   BUILD_QUOTE_ROUTE,
 } from '../../../helpers/constants/routes';
-import {
-  useMetricEvent,
-  useNewMetricEvent,
-} from '../../../hooks/useMetricEvent';
 import Tooltip from '../../ui/tooltip';
 import UserPreferencedCurrencyDisplay from '../user-preferenced-currency-display';
 import { PRIMARY, SECONDARY } from '../../../helpers/constants/common';
 import { showModal } from '../../../store/actions';
 import {
   isBalanceCached,
-  getSelectedAccount,
   getShouldShowFiat,
-  getIsMainnet,
-  getIsTestnet,
   getCurrentKeyring,
   getSwapsDefaultToken,
   getIsSwapsChain,
+  getIsBuyableChain,
   getNativeCurrencyImage,
+  getSelectedAccountCachedBalance,
 } from '../../../selectors/selectors';
 import SwapIcon from '../../ui/icon/swap-icon.component';
 import BuyIcon from '../../ui/icon/overview-buy-icon.component';
 import SendIcon from '../../ui/icon/overview-send-icon.component';
 import { setSwapsFromToken } from '../../../ducks/swaps/swaps';
 import IconButton from '../../ui/icon-button';
+import { isHardwareKeyring } from '../../../helpers/utils/hardware';
+import { MetaMetricsContext } from '../../../contexts/metametrics';
+import { EVENT } from '../../../../shared/constants/metametrics';
+import Spinner from '../../ui/spinner';
 import WalletOverview from './wallet-overview';
 
 const EthOverview = ({ className }) => {
   const dispatch = useDispatch();
   const t = useContext(I18nContext);
-  const sendEvent = useMetricEvent({
-    eventOpts: {
-      category: 'Navigation',
-      action: 'Home',
-      name: 'Clicked Send: Eth',
-    },
-  });
-  const depositEvent = useMetricEvent({
-    eventOpts: {
-      category: 'Navigation',
-      action: 'Home',
-      name: 'Clicked Deposit',
-    },
-  });
+  const trackEvent = useContext(MetaMetricsContext);
   const history = useHistory();
   const keyring = useSelector(getCurrentKeyring);
-  const usingHardwareWallet = keyring.type.search('Hardware') !== -1;
+  const usingHardwareWallet = isHardwareKeyring(keyring?.type);
   const balanceIsCached = useSelector(isBalanceCached);
   const showFiat = useSelector(getShouldShowFiat);
-  const selectedAccount = useSelector(getSelectedAccount);
-  const { balance } = selectedAccount;
-  const isMainnetChain = useSelector(getIsMainnet);
-  const isTestnetChain = useSelector(getIsTestnet);
+  const balance = useSelector(getSelectedAccountCachedBalance);
   const isSwapsChain = useSelector(getIsSwapsChain);
+  const isBuyableChain = useSelector(getIsBuyableChain);
   const primaryTokenImage = useSelector(getNativeCurrencyImage);
-
-  const enteredSwapsEvent = useNewMetricEvent({
-    event: 'Swaps Opened',
-    properties: { source: 'Main View', active_currency: 'ETH' },
-    category: 'swaps',
-  });
   const defaultSwapsToken = useSelector(getSwapsDefaultToken);
 
   return (
@@ -82,21 +60,28 @@ const EthOverview = ({ className }) => {
         >
           <div className="eth-overview__balance">
             <div className="eth-overview__primary-container">
-              <UserPreferencedCurrencyDisplay
-                className={classnames('eth-overview__primary-balance', {
-                  'eth-overview__cached-balance': balanceIsCached,
-                })}
-                data-testid="eth-overview__primary-currency"
-                value={balance}
-                type={PRIMARY}
-                ethNumberOfDecimals={4}
-                hideTitle
-              />
+              {balance ? (
+                <UserPreferencedCurrencyDisplay
+                  className={classnames('eth-overview__primary-balance', {
+                    'eth-overview__cached-balance': balanceIsCached,
+                  })}
+                  data-testid="eth-overview__primary-currency"
+                  value={balance}
+                  type={PRIMARY}
+                  ethNumberOfDecimals={4}
+                  hideTitle
+                />
+              ) : (
+                <Spinner
+                  color="var(--color-secondary-default)"
+                  className="loading-overlay__spinner"
+                />
+              )}
               {balanceIsCached ? (
                 <span className="eth-overview__cached-star">*</span>
               ) : null}
             </div>
-            {showFiat && (
+            {showFiat && balance && (
               <UserPreferencedCurrencyDisplay
                 className={classnames({
                   'eth-overview__cached-secondary-balance': balanceIsCached,
@@ -117,10 +102,17 @@ const EthOverview = ({ className }) => {
           <IconButton
             className="eth-overview__button"
             Icon={BuyIcon}
-            disabled={!(isMainnetChain || isTestnetChain)}
+            disabled={!isBuyableChain}
             label={t('buy')}
             onClick={() => {
-              depositEvent();
+              trackEvent({
+                event: 'Clicked Deposit',
+                category: EVENT.CATEGORIES.NAVIGATION,
+                properties: {
+                  action: 'Home',
+                  legacy_event: true,
+                },
+              });
               dispatch(showModal({ name: 'DEPOSIT_ETHER' }));
             }}
           />
@@ -130,7 +122,14 @@ const EthOverview = ({ className }) => {
             Icon={SendIcon}
             label={t('send')}
             onClick={() => {
-              sendEvent();
+              trackEvent({
+                event: 'Clicked Send: Eth',
+                category: EVENT.CATEGORIES.NAVIGATION,
+                properties: {
+                  action: 'Home',
+                  legacy_event: true,
+                },
+              });
               history.push(SEND_ROUTE);
             }}
           />
@@ -140,7 +139,14 @@ const EthOverview = ({ className }) => {
             Icon={SwapIcon}
             onClick={() => {
               if (isSwapsChain) {
-                enteredSwapsEvent();
+                trackEvent({
+                  event: 'Swaps Opened',
+                  category: EVENT.CATEGORIES.SWAPS,
+                  properties: {
+                    source: EVENT.SOURCE.SWAPS.MAIN_VIEW,
+                    active_currency: 'ETH',
+                  },
+                });
                 dispatch(setSwapsFromToken(defaultSwapsToken));
                 if (usingHardwareWallet) {
                   global.platform.openExtensionInBrowser(BUILD_QUOTE_ROUTE);
@@ -152,7 +158,7 @@ const EthOverview = ({ className }) => {
             label={t('swap')}
             tooltipRender={(contents) => (
               <Tooltip
-                title={t('onlyAvailableOnMainnet')}
+                title={t('currentlyUnavailable')}
                 position="bottom"
                 disabled={isSwapsChain}
               >

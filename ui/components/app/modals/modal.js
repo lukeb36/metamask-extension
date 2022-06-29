@@ -10,8 +10,6 @@ import { ENVIRONMENT_TYPE_POPUP } from '../../../../shared/constants/app';
 
 // Modal Components
 import ConfirmCustomizeGasModal from '../gas-customization/gas-modal-page-container';
-import SwapsGasCustomizationModal from '../../../pages/swaps/swaps-gas-customization-modal';
-import EditGasPopover from '../edit-gas-popover/edit-gas-popover.component';
 import DepositEtherModal from './deposit-ether-modal';
 import AccountDetailsModal from './account-details-modal';
 import ExportPrivateKeyModal from './export-private-key-modal';
@@ -27,16 +25,16 @@ import FadeModal from './fade-modal';
 import MetaMetricsOptInModal from './metametrics-opt-in-modal';
 import RejectTransactions from './reject-transactions';
 import ConfirmDeleteNetwork from './confirm-delete-network';
-import AddToAddressBookModal from './add-to-addressbook-modal';
 import EditApprovalPermission from './edit-approval-permission';
 import NewAccountModal from './new-account-modal';
 import CustomizeNonceModal from './customize-nonce';
+import ConvertTokenToNftModal from './convert-token-to-nft-modal/convert-token-to-nft-modal';
 
 const modalContainerBaseStyle = {
   transform: 'translate3d(-50%, 0, 0px)',
-  border: '1px solid #CCCFD1',
+  border: '1px solid var(--color-border-default)',
   borderRadius: '8px',
-  backgroundColor: '#FFFFFF',
+  backgroundColor: 'var(--color-background-default)',
   boxShadow: '0 2px 22px 0 rgba(0,0,0,0.2)',
 };
 
@@ -65,7 +63,7 @@ const accountModalStyle = {
     margin: '0 auto',
   },
   laptopModalStyle: {
-    width: '360px',
+    width: '335px',
     // top: 'calc(33% + 45px)',
     boxShadow: 'rgba(0, 0, 0, 0.15) 0px 2px 2px 2px',
     borderRadius: '4px',
@@ -114,33 +112,6 @@ const MODALS = {
     },
   },
 
-  ADD_TO_ADDRESSBOOK: {
-    contents: <AddToAddressBookModal />,
-    mobileModalStyle: {
-      width: '95%',
-      top: '10%',
-      boxShadow: 'rgba(0, 0, 0, 0.15) 0px 2px 2px 2px',
-      transform: 'none',
-      left: '0',
-      right: '0',
-      margin: '0 auto',
-      borderRadius: '10px',
-    },
-    laptopModalStyle: {
-      width: '375px',
-      top: '10%',
-      boxShadow: 'rgba(0, 0, 0, 0.15) 0px 2px 2px 2px',
-      transform: 'none',
-      left: '0',
-      right: '0',
-      margin: '0 auto',
-      borderRadius: '10px',
-    },
-    contentStyle: {
-      borderRadius: '10px',
-    },
-  },
-
   NEW_ACCOUNT: {
     contents: <NewAccountModal />,
     mobileModalStyle: {
@@ -185,8 +156,13 @@ const MODALS = {
       top: getEnvironmentType() === ENVIRONMENT_TYPE_POPUP ? '52vh' : '36.5vh',
     },
     laptopModalStyle: {
-      width: '449px',
+      width:
+        getEnvironmentType() === ENVIRONMENT_TYPE_POPUP ? '357px' : '449px',
       top: 'calc(33% + 45px)',
+      paddingLeft:
+        getEnvironmentType() === ENVIRONMENT_TYPE_POPUP ? '16px' : null,
+      paddingRight:
+        getEnvironmentType() === ENVIRONMENT_TYPE_POPUP ? '16px' : null,
     },
   },
 
@@ -233,6 +209,19 @@ const MODALS = {
     },
   },
 
+  CONVERT_TOKEN_TO_NFT: {
+    contents: <ConvertTokenToNftModal />,
+    mobileModalStyle: {
+      ...modalContainerMobileStyle,
+    },
+    laptopModalStyle: {
+      ...modalContainerLaptopStyle,
+    },
+    contentStyle: {
+      borderRadius: '8px',
+    },
+  },
+
   CONFIRM_DELETE_NETWORK: {
     contents: <ConfirmDeleteNetwork />,
     mobileModalStyle: {
@@ -246,12 +235,8 @@ const MODALS = {
     },
   },
 
-  CUSTOMIZE_GAS: {
-    contents: process.env.SHOW_EIP_1559_UI ? (
-      <EditGasPopover />
-    ) : (
-      <ConfirmCustomizeGasModal />
-    ),
+  LEGACY_CUSTOMIZE_GAS: {
+    contents: <ConfirmCustomizeGasModal />,
     mobileModalStyle: {
       width: '100vw',
       height: '100vh',
@@ -276,31 +261,6 @@ const MODALS = {
     customOnHideOpts: {
       action: resetCustomGasData,
       args: [],
-    },
-  },
-
-  CUSTOMIZE_METASWAP_GAS: {
-    contents: <SwapsGasCustomizationModal />,
-    mobileModalStyle: {
-      width: '100vw',
-      height: '100vh',
-      top: '0',
-      transform: 'none',
-      left: '0',
-      right: '0',
-      margin: '0 auto',
-    },
-    laptopModalStyle: {
-      width: 'auto',
-      height: '0px',
-      top: '80px',
-      left: '0px',
-      transform: 'none',
-      margin: '0 auto',
-      position: 'relative',
-    },
-    contentStyle: {
-      borderRadius: '8px',
     },
   },
 
@@ -403,7 +363,7 @@ const MODALS = {
 };
 
 const BACKDROPSTYLE = {
-  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  backgroundColor: 'var(--color-overlay-default)',
 };
 
 function mapStateToProps(state) {

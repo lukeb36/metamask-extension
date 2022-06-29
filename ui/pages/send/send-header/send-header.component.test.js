@@ -3,8 +3,9 @@ import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
 
 import { fireEvent } from '@testing-library/react';
-import { ASSET_TYPES, initialState, SEND_STAGES } from '../../../ducks/send';
+import { initialState, SEND_STAGES } from '../../../ducks/send';
 import { renderWithProvider } from '../../../../test/jest';
+import { ASSET_TYPES } from '../../../../shared/constants/transaction';
 import SendHeader from './send-header.component';
 
 const middleware = [thunk];
@@ -21,7 +22,7 @@ jest.mock('react-router-dom', () => {
 
 describe('SendHeader Component', () => {
   describe('Title', () => {
-    it('should render "Add Recipient" for UNINITIALIZED or ADD_RECIPIENT stages', () => {
+    it('should render "Send to" for INACTIVE or ADD_RECIPIENT stages', () => {
       const { getByText, rerender } = renderWithProvider(
         <SendHeader />,
         configureMockStore(middleware)({
@@ -30,7 +31,7 @@ describe('SendHeader Component', () => {
           history: { mostRecentOverviewPage: 'activity' },
         }),
       );
-      expect(getByText('Add Recipient')).toBeTruthy();
+      expect(getByText('Send to')).toBeTruthy();
       rerender(
         <SendHeader />,
         configureMockStore(middleware)({
@@ -39,7 +40,7 @@ describe('SendHeader Component', () => {
           history: { mostRecentOverviewPage: 'activity' },
         }),
       );
-      expect(getByText('Add Recipient')).toBeTruthy();
+      expect(getByText('Send to')).toBeTruthy();
     });
 
     it('should render "Send" for DRAFT stage when asset type is NATIVE', () => {
@@ -101,6 +102,18 @@ describe('SendHeader Component', () => {
         }),
       );
       expect(getByText('Cancel')).toBeTruthy();
+    });
+
+    it('has button label changed to Cancel Edit in editing stage', () => {
+      const { getByText } = renderWithProvider(
+        <SendHeader />,
+        configureMockStore(middleware)({
+          send: { ...initialState, stage: SEND_STAGES.EDIT },
+          gas: { basicEstimateStatus: 'LOADING' },
+          history: { mostRecentOverviewPage: 'activity' },
+        }),
+      );
+      expect(getByText('Cancel Edit')).toBeTruthy();
     });
 
     it('resets send state when clicked', () => {

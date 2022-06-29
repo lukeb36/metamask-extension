@@ -71,9 +71,8 @@ const INVALID_CHAIN = {
 
 async function getAlerts(pendingApproval) {
   const alerts = [];
-  const safeChainsList = await fetchWithCache(
-    'https://chainid.network/chains.json',
-  );
+  const safeChainsList =
+    (await fetchWithCache('https://chainid.network/chains.json')) || [];
   const matchedChain = safeChainsList.find(
     (chain) =>
       chain.chainId === parseInt(pendingApproval.requestData.chainId, 16),
@@ -153,7 +152,7 @@ function getValues(pendingApproval, t, actions) {
                   key: 'addEthereumChainConfirmationRisksLearnMoreLink',
                   props: {
                     href:
-                      'https://metamask.zendesk.com/hc/en-us/articles/360056196151',
+                      'https://metamask.zendesk.com/hc/en-us/articles/4404424659995',
                     target: '__blank',
                   },
                 },
@@ -204,8 +203,9 @@ function getValues(pendingApproval, t, actions) {
     onCancel: () =>
       actions.rejectPendingApproval(
         pendingApproval.id,
-        ethErrors.provider.userRejectedRequest(),
+        ethErrors.provider.userRejectedRequest().serialize(),
       ),
+    networkDisplay: true,
   };
 }
 

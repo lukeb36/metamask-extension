@@ -1,8 +1,10 @@
 import copyToClipboard from 'copy-to-clipboard';
 import log from 'loglevel';
-import { clone } from 'lodash';
+import { clone, memoize } from 'lodash';
 import React from 'react';
 import { render } from 'react-dom';
+import browser from 'webextension-polyfill';
+
 import { getEnvironmentType } from '../app/scripts/lib/util';
 import { ALERT_TYPES } from '../shared/constants/alerts';
 import { SENTRY_STATE } from '../app/scripts/lib/setupSentry';
@@ -34,7 +36,7 @@ export default function launchMetamaskUi(opts, cb) {
   // check if we are unlocked first
   backgroundConnection.getState(function (err, metamaskState) {
     if (err) {
-      cb(err);
+      cb(err, metamaskState);
       return;
     }
     startApp(metamaskState, backgroundConnection, opts).then((store) => {
@@ -44,21 +46,31 @@ export default function launchMetamaskUi(opts, cb) {
   });
 }
 
+const _setupLocale = async (currentLocale) => {
+  const currentLocaleMessages = currentLocale
+    ? await fetchLocale(currentLocale)
+    : {};
+  const enLocaleMessages = await fetchLocale('en');
+
+  await loadRelativeTimeFormatLocaleData('en');
+  if (currentLocale) {
+    await loadRelativeTimeFormatLocaleData(currentLocale);
+  }
+
+  return { currentLocaleMessages, enLocaleMessages };
+};
+
+export const setupLocale = memoize(_setupLocale);
+
 async function startApp(metamaskState, backgroundConnection, opts) {
   // parse opts
   if (!metamaskState.featureFlags) {
     metamaskState.featureFlags = {};
   }
 
-  const currentLocaleMessages = metamaskState.currentLocale
-    ? await fetchLocale(metamaskState.currentLocale)
-    : {};
-  const enLocaleMessages = await fetchLocale('en');
-
-  await loadRelativeTimeFormatLocaleData('en');
-  if (metamaskState.currentLocale) {
-    await loadRelativeTimeFormatLocaleData(metamaskState.currentLocale);
-  }
+  const { currentLocaleMessages, enLocaleMessages } = await setupLocale(
+    metamaskState.currentLocale,
+  );
 
   if (metamaskState.textDirection === 'rtl') {
     await switchDirection('rtl');
@@ -183,10 +195,13 @@ function maskObject(object, mask) {
 }
 
 function setupDebuggingHelpers(store) {
-  window.getCleanAppState = function () {
+  window.getCleanAppState = async function () {
     const state = clone(store.getState());
     state.version = global.platform.getVersion();
     state.browser = window.navigator.userAgent;
+    state.completeTxList = await actions.getTransactions({
+      filterToCurrentNetwork: false,
+    });
     return state;
   };
   window.getSentryState = function () {
@@ -200,17 +215,18 @@ function setupDebuggingHelpers(store) {
   };
 }
 
-window.logStateString = function (cb) {
-  const state = window.getCleanAppState();
-  global.platform.getPlatformInfo((err, platform) => {
-    if (err) {
+window.logStateString = async function (cb) {
+  const state = await window.getCleanAppState();
+  browser.runtime
+    .getPlatformInfo()
+    .then((platform) => {
+      state.platform = platform;
+      const stateString = JSON.stringify(state, null, 2);
+      cb(null, stateString);
+    })
+    .catch((err) => {
       cb(err);
-      return;
-    }
-    state.platform = platform;
-    const stateString = JSON.stringify(state, null, 2);
-    cb(null, stateString);
-  });
+    });
 };
 
 window.logState = function (toClipboard) {

@@ -6,24 +6,32 @@ import { useUserPreferencedCurrency } from '../../../hooks/useUserPreferencedCur
 
 export default function UserPreferencedCurrencyDisplay({
   'data-testid': dataTestId,
-  ethLogoHeight = 12,
+  ethLogoHeight = 14,
   ethNumberOfDecimals,
   fiatNumberOfDecimals,
-  'numberOfDecimals': propsNumberOfDecimals,
+  numberOfDecimals: propsNumberOfDecimals,
   showEthLogo,
   type,
+  showFiat,
   ...restProps
 }) {
   const { currency, numberOfDecimals } = useUserPreferencedCurrency(type, {
     ethNumberOfDecimals,
     fiatNumberOfDecimals,
     numberOfDecimals: propsNumberOfDecimals,
+    showFiatOverride: showFiat,
   });
   const prefixComponent = useMemo(() => {
     return (
       currency === ETH &&
       showEthLogo && (
-        <img src="./images/eth.svg" height={ethLogoHeight} alt="" />
+        <i
+          className="fab fa-ethereum"
+          style={{
+            color: 'var(--color-icon-default)',
+            fontSize: ethLogoHeight,
+          }}
+        />
       )
     );
   }, [currency, showEthLogo, ethLogoHeight]);
@@ -40,23 +48,24 @@ export default function UserPreferencedCurrencyDisplay({
 }
 
 UserPreferencedCurrencyDisplay.propTypes = {
-  'className': PropTypes.string,
+  className: PropTypes.string,
   'data-testid': PropTypes.string,
-  'prefix': PropTypes.string,
-  'value': PropTypes.string,
-  'numberOfDecimals': PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  'hideLabel': PropTypes.bool,
-  'hideTitle': PropTypes.bool,
-  'style': PropTypes.object,
-  'showEthLogo': PropTypes.bool,
-  'ethLogoHeight': PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  'type': PropTypes.oneOf([PRIMARY, SECONDARY]),
-  'ethNumberOfDecimals': PropTypes.oneOfType([
+  prefix: PropTypes.string,
+  value: PropTypes.string,
+  numberOfDecimals: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  hideLabel: PropTypes.bool,
+  hideTitle: PropTypes.bool,
+  style: PropTypes.object,
+  showEthLogo: PropTypes.bool,
+  ethLogoHeight: PropTypes.number,
+  type: PropTypes.oneOf([PRIMARY, SECONDARY]),
+  ethNumberOfDecimals: PropTypes.oneOfType([
     PropTypes.string,
     PropTypes.number,
   ]),
-  'fiatNumberOfDecimals': PropTypes.oneOfType([
+  fiatNumberOfDecimals: PropTypes.oneOfType([
     PropTypes.string,
     PropTypes.number,
   ]),
+  showFiat: PropTypes.bool,
 };

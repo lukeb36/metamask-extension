@@ -4,6 +4,7 @@ import thunk from 'redux-thunk';
 import enLocale from '../../app/_locales/en/messages.json';
 import MetaMaskController from '../../app/scripts/metamask-controller';
 import { TRANSACTION_STATUSES } from '../../shared/constants/transaction';
+import { DEVICE_NAMES } from '../../shared/constants/hardware-wallets';
 import { GAS_LIMITS } from '../../shared/constants/gas';
 import * as actions from './actions';
 
@@ -45,14 +46,10 @@ describe('Actions', () => {
       sinon.restore();
     });
 
-    it('calls submitPassword and verifySeedPhrase', async () => {
+    it('calls submitPassword', async () => {
       const store = mockStore();
 
       const submitPassword = background.submitPassword.callsFake((_, cb) =>
-        cb(),
-      );
-
-      const verifySeedPhrase = background.verifySeedPhrase.callsFake((cb) =>
         cb(),
       );
 
@@ -72,7 +69,6 @@ describe('Actions', () => {
       await store.dispatch(actions.tryUnlockMetamask());
 
       expect(submitPassword.callCount).toStrictEqual(1);
-      expect(verifySeedPhrase.callCount).toStrictEqual(1);
 
       expect(store.getActions()).toStrictEqual(expectedActions);
     });
@@ -87,36 +83,6 @@ describe('Actions', () => {
       const expectedActions = [
         { type: 'SHOW_LOADING_INDICATION', value: undefined },
         { type: 'UNLOCK_IN_PROGRESS' },
-        { type: 'UNLOCK_FAILED', value: 'error' },
-        { type: 'HIDE_LOADING_INDICATION' },
-      ];
-
-      await expect(
-        store.dispatch(actions.tryUnlockMetamask('test')),
-      ).rejects.toThrow('error');
-
-      expect(store.getActions()).toStrictEqual(expectedActions);
-    });
-
-    it('displays warning error and unlock failed when verifySeed fails', async () => {
-      const store = mockStore();
-
-      background.submitPassword.callsFake((_, cb) => cb());
-      background.verifySeedPhrase.callsFake((cb) => {
-        cb(new Error('error'));
-      });
-
-      actions._setBackgroundConnection(background);
-
-      const expectedActions = [
-        { type: 'SHOW_LOADING_INDICATION', value: undefined },
-        { type: 'UNLOCK_IN_PROGRESS' },
-        { type: 'UNLOCK_SUCCEEDED', value: undefined },
-        {
-          type: 'UPDATE_METAMASK_STATE',
-          value: baseMockState,
-        },
-        { type: 'DISPLAY_WARNING', value: 'error' },
         { type: 'UNLOCK_FAILED', value: 'error' },
         { type: 'HIDE_LOADING_INDICATION' },
       ];
@@ -145,7 +111,9 @@ describe('Actions', () => {
 
       actions._setBackgroundConnection(background);
 
-      await store.dispatch(actions.createNewVaultAndRestore());
+      await store.dispatch(
+        actions.createNewVaultAndRestore('password', 'test'),
+      );
       expect(createNewVaultAndRestore.callCount).toStrictEqual(1);
     });
 
@@ -168,7 +136,9 @@ describe('Actions', () => {
         { type: 'HIDE_LOADING_INDICATION' },
       ];
 
-      await store.dispatch(actions.createNewVaultAndRestore());
+      await store.dispatch(
+        actions.createNewVaultAndRestore('password', 'test'),
+      );
 
       expect(store.getActions()).toStrictEqual(expectedActions);
     });
@@ -189,7 +159,7 @@ describe('Actions', () => {
       ];
 
       await expect(
-        store.dispatch(actions.createNewVaultAndRestore()),
+        store.dispatch(actions.createNewVaultAndRestore('password', 'test')),
       ).rejects.toThrow('error');
 
       expect(store.getActions()).toStrictEqual(expectedActions);
@@ -208,7 +178,7 @@ describe('Actions', () => {
         cb(),
       );
       const verifySeedPhrase = background.verifySeedPhrase.callsFake((cb) =>
-        cb(),
+        cb(null, Array.from(Buffer.from('test').values())),
       );
 
       actions._setBackgroundConnection(background);
@@ -471,7 +441,7 @@ describe('Actions', () => {
       actions._setBackgroundConnection(background);
 
       await store.dispatch(
-        actions.checkHardwareStatus('ledger', `m/44'/60'/0'/0`),
+        actions.checkHardwareStatus(DEVICE_NAMES.LEDGER, `m/44'/60'/0'/0`),
       );
       expect(checkHardwareStatus.callCount).toStrictEqual(1);
     });
@@ -511,7 +481,7 @@ describe('Actions', () => {
 
       actions._setBackgroundConnection(background);
 
-      await store.dispatch(actions.forgetDevice('ledger'));
+      await store.dispatch(actions.forgetDevice(DEVICE_NAMES.LEDGER));
       expect(forgetDevice.callCount).toStrictEqual(1);
     });
 
@@ -548,10 +518,12 @@ describe('Actions', () => {
         (_, __, ___, cb) => cb(),
       );
 
+      background.establishLedgerTransportPreference.callsFake((cb) => cb());
+
       actions._setBackgroundConnection(background);
 
       await store.dispatch(
-        actions.connectHardware('ledger', 0, `m/44'/60'/0'/0`),
+        actions.connectHardware(DEVICE_NAMES.LEDGER, 0, `m/44'/60'/0'/0`),
       );
       expect(connectHardware.callCount).toStrictEqual(1);
     });
@@ -562,6 +534,8 @@ describe('Actions', () => {
       background.connectHardware.callsFake((_, __, ___, cb) =>
         cb(new Error('error')),
       );
+
+      background.establishLedgerTransportPreference.callsFake((cb) => cb());
 
       actions._setBackgroundConnection(background);
 
@@ -575,7 +549,7 @@ describe('Actions', () => {
       ];
 
       await expect(
-        store.dispatch(actions.connectHardware('ledger')),
+        store.dispatch(actions.connectHardware(DEVICE_NAMES.LEDGER)),
       ).rejects.toThrow('error');
 
       expect(store.getActions()).toStrictEqual(expectedActions);
@@ -598,7 +572,7 @@ describe('Actions', () => {
       await store.dispatch(
         actions.unlockHardwareWalletAccounts(
           [0],
-          'ledger',
+          DEVICE_NAMES.LEDGER,
           `m/44'/60'/0'/0`,
           '',
         ),
@@ -1069,6 +1043,7 @@ describe('Actions', () => {
 
       background.getApi.returns({
         addToken: addTokenStub,
+        getState: sinon.stub().callsFake((cb) => cb(null, baseMockState)),
       });
 
       actions._setBackgroundConnection(background.getApi());
@@ -1098,17 +1073,18 @@ describe('Actions', () => {
 
       background.getApi.returns({
         addToken: addTokenStub,
+        getState: sinon.stub().callsFake((cb) => cb(null, baseMockState)),
       });
 
       actions._setBackgroundConnection(background.getApi());
 
       const expectedActions = [
         { type: 'SHOW_LOADING_INDICATION', value: undefined },
-        { type: 'HIDE_LOADING_INDICATION' },
         {
-          type: 'UPDATE_TOKENS',
-          newTokens: tokenDetails,
+          type: 'UPDATE_METAMASK_STATE',
+          value: baseMockState,
         },
+        { type: 'HIDE_LOADING_INDICATION' },
       ];
 
       await store.dispatch(
@@ -1118,38 +1094,6 @@ describe('Actions', () => {
           decimals: 18,
         }),
       );
-
-      expect(store.getActions()).toStrictEqual(expectedActions);
-    });
-
-    it('errors when addToken in background throws', async () => {
-      const store = mockStore();
-
-      const addTokenStub = sinon
-        .stub()
-        .callsFake((_, __, ___, ____, cb) => cb(new Error('error')));
-
-      background.getApi.returns({
-        addToken: addTokenStub,
-      });
-
-      actions._setBackgroundConnection(background.getApi());
-
-      const expectedActions = [
-        { type: 'SHOW_LOADING_INDICATION', value: undefined },
-        { type: 'HIDE_LOADING_INDICATION' },
-        { type: 'DISPLAY_WARNING', value: 'error' },
-      ];
-
-      await expect(
-        store.dispatch(
-          actions.addToken({
-            address: '_',
-            symbol: '',
-            decimals: 0,
-          }),
-        ),
-      ).rejects.toThrow('error');
 
       expect(store.getActions()).toStrictEqual(expectedActions);
     });
@@ -1167,6 +1111,7 @@ describe('Actions', () => {
 
       background.getApi.returns({
         removeToken: removeTokenStub,
+        getState: sinon.stub().callsFake((cb) => cb(null, baseMockState)),
       });
 
       actions._setBackgroundConnection(background.getApi());
@@ -1175,24 +1120,27 @@ describe('Actions', () => {
       expect(removeTokenStub.callCount).toStrictEqual(1);
     });
 
-    it('errors when removeToken in background fails', async () => {
+    it('should display warning when removeToken in background fails', async () => {
       const store = mockStore();
 
       background.getApi.returns({
         removeToken: sinon.stub().callsFake((_, cb) => cb(new Error('error'))),
+        getState: sinon.stub().callsFake((cb) => cb(null, baseMockState)),
       });
 
       actions._setBackgroundConnection(background.getApi());
 
       const expectedActions = [
         { type: 'SHOW_LOADING_INDICATION', value: undefined },
-        { type: 'HIDE_LOADING_INDICATION' },
         { type: 'DISPLAY_WARNING', value: 'error' },
+        {
+          type: 'UPDATE_METAMASK_STATE',
+          value: baseMockState,
+        },
+        { type: 'HIDE_LOADING_INDICATION' },
       ];
 
-      await expect(store.dispatch(actions.removeToken())).rejects.toThrow(
-        'error',
-      );
+      await store.dispatch(actions.removeToken());
 
       expect(store.getActions()).toStrictEqual(expectedActions);
     });
@@ -1542,23 +1490,20 @@ describe('Actions', () => {
 
     it('calls setUseBlockie in background', async () => {
       const store = mockStore();
-
-      const setUseBlockStub = background.setUseBlockie.callsFake((_, cb) =>
-        cb(),
-      );
-
-      actions._setBackgroundConnection(background);
+      const setUseBlockieStub = sinon.stub().callsFake((_, cb) => cb());
+      actions._setBackgroundConnection({ setUseBlockie: setUseBlockieStub });
 
       await store.dispatch(actions.setUseBlockie());
-      expect(setUseBlockStub.callCount).toStrictEqual(1);
+      expect(setUseBlockieStub.callCount).toStrictEqual(1);
     });
 
     it('errors when setUseBlockie in background throws', async () => {
       const store = mockStore();
+      const setUseBlockieStub = sinon.stub().callsFake((_, cb) => {
+        cb(new Error('error'));
+      });
 
-      background.setUseBlockie.callsFake((_, cb) => cb(new Error('error')));
-
-      actions._setBackgroundConnection(background);
+      actions._setBackgroundConnection({ setUseBlockie: setUseBlockieStub });
 
       const expectedActions = [
         { type: 'SHOW_LOADING_INDICATION', value: undefined },
@@ -1585,10 +1530,10 @@ describe('Actions', () => {
 
     it('calls expected actions', async () => {
       const store = mockStore();
-
-      background.setCurrentLocale.callsFake((_, cb) => cb());
-
-      actions._setBackgroundConnection(background);
+      const setCurrentLocaleStub = sinon.stub().callsFake((_, cb) => cb());
+      actions._setBackgroundConnection({
+        setCurrentLocale: setCurrentLocaleStub,
+      });
 
       const expectedActions = [
         { type: 'SHOW_LOADING_INDICATION', value: undefined },
@@ -1600,16 +1545,18 @@ describe('Actions', () => {
       ];
 
       await store.dispatch(actions.updateCurrentLocale('test'));
-      expect(background.setCurrentLocale.callCount).toStrictEqual(1);
+      expect(setCurrentLocaleStub.callCount).toStrictEqual(1);
       expect(store.getActions()).toStrictEqual(expectedActions);
     });
 
     it('errors when setCurrentLocale throws', async () => {
       const store = mockStore();
-
-      background.setCurrentLocale.callsFake((_, cb) => cb(new Error('error')));
-
-      actions._setBackgroundConnection(background);
+      const setCurrentLocaleStub = sinon
+        .stub()
+        .callsFake((_, cb) => cb(new Error('error')));
+      actions._setBackgroundConnection({
+        setCurrentLocale: setCurrentLocaleStub,
+      });
 
       const expectedActions = [
         { type: 'SHOW_LOADING_INDICATION', value: undefined },
@@ -1747,6 +1694,60 @@ describe('Actions', () => {
       );
 
       expect(expectedAction.value.id).toStrictEqual(txId);
+    });
+  });
+
+  describe('#cancelMsgs', () => {
+    it('creates COMPLETED_TX with the cancelled messages IDs', async () => {
+      const store = mockStore();
+
+      const cancelTypedMessageStub = sinon.stub().callsFake((_, cb) => cb());
+
+      const cancelPersonalMessageStub = sinon.stub().callsFake((_, cb) => cb());
+
+      background.getApi.returns({
+        cancelTypedMessage: cancelTypedMessageStub,
+        cancelPersonalMessage: cancelPersonalMessageStub,
+        getState: sinon.stub().callsFake((cb) =>
+          cb(null, {
+            currentLocale: 'test',
+            selectedAddress: '0xFirstAddress',
+            provider: {
+              chainId: '0x1',
+            },
+            accounts: {
+              '0xFirstAddress': {
+                balance: '0x0',
+              },
+            },
+            cachedBalances: {
+              '0x1': {
+                '0xFirstAddress': '0x0',
+              },
+            },
+          }),
+        ),
+      });
+
+      const msgsList = [
+        { id: 7648683973086304, status: 'unapproved', type: 'personal_sign' },
+        {
+          id: 7648683973086303,
+          status: 'unapproved',
+          type: 'eth_signTypedData',
+        },
+      ];
+
+      actions._setBackgroundConnection(background.getApi());
+
+      await store.dispatch(actions.cancelMsgs(msgsList));
+      const resultantActions = store.getActions();
+      const expectedActions = resultantActions.filter(
+        (action) => action.type === 'COMPLETED_TX',
+      );
+
+      expect(expectedActions[0].value.id).toStrictEqual(msgsList[0]);
+      expect(expectedActions[1].value.id).toStrictEqual(msgsList[1]);
     });
   });
 });

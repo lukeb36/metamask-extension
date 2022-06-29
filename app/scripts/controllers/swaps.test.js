@@ -4,7 +4,6 @@ import sinon from 'sinon';
 import { ethers } from 'ethers';
 import { mapValues } from 'lodash';
 import BigNumber from 'bignumber.js';
-import { ObservableStore } from '@metamask/obs-store';
 import {
   ROPSTEN_NETWORK_ID,
   MAINNET_NETWORK_ID,
@@ -13,6 +12,11 @@ import {
 import { ETH_SWAPS_TOKEN_OBJECT } from '../../../shared/constants/swaps';
 import { createTestProviderTools } from '../../../test/stub/provider';
 import { SECOND } from '../../../shared/constants/time';
+import { GAS_ESTIMATE_TYPES } from '../../../shared/constants/gas';
+import {
+  FALLBACK_SMART_TRANSACTIONS_REFRESH_TIME,
+  FALLBACK_SMART_TRANSACTIONS_MAX_FEE_MULTIPLIER,
+} from '../../../shared/constants/smartTransactions';
 import SwapsController, { utils } from './swaps';
 import { NETWORK_EVENTS } from './network';
 
@@ -82,7 +86,7 @@ const MOCK_FETCH_METADATA = {
   chainId: MAINNET_CHAIN_ID,
 };
 
-const MOCK_TOKEN_RATES_STORE = new ObservableStore({
+const MOCK_TOKEN_RATES_STORE = () => ({
   contractExchangeRates: {
     '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': 2,
     '0x1111111111111111111111111111111111111111': 0.1,
@@ -115,12 +119,15 @@ function getMockNetworkController() {
 const EMPTY_INIT_STATE = {
   swapsState: {
     quotes: {},
+    quotesPollingLimitEnabled: false,
     fetchParams: null,
     tokens: null,
     tradeTxId: null,
     approveTxId: null,
     quotesLastFetched: null,
+    customMaxFeePerGas: null,
     customMaxGas: '',
+    customMaxPriorityFeePerGas: null,
     customGasPrice: null,
     selectedAggId: null,
     customApproveTxData: '',
@@ -128,16 +135,29 @@ const EMPTY_INIT_STATE = {
     topAggId: null,
     routeState: '',
     swapsFeatureIsLive: true,
-    useNewSwapsApi: false,
+    swapsFeatureFlags: {},
     swapsQuoteRefreshTime: 60000,
+    swapsQuotePrefetchingRefreshTime: 60000,
+    swapsStxBatchStatusRefreshTime: FALLBACK_SMART_TRANSACTIONS_REFRESH_TIME,
+    swapsStxGetTransactionsRefreshTime: FALLBACK_SMART_TRANSACTIONS_REFRESH_TIME,
+    swapsStxMaxFeeMultiplier: FALLBACK_SMART_TRANSACTIONS_MAX_FEE_MULTIPLIER,
+    swapsUserFeeLevel: '',
+    saveFetchedQuotes: false,
   },
 };
 
 const sandbox = sinon.createSandbox();
 const fetchTradesInfoStub = sandbox.stub();
-const fetchSwapsQuoteRefreshTimeStub = sandbox.stub();
 const getCurrentChainIdStub = sandbox.stub();
 getCurrentChainIdStub.returns(MAINNET_CHAIN_ID);
+const getEIP1559GasFeeEstimatesStub = sandbox.stub(() => {
+  return {
+    gasFeeEstimates: {
+      high: '150',
+    },
+    gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
+  };
+});
 
 describe('SwapsController', function () {
   let provider;
@@ -148,10 +168,10 @@ describe('SwapsController', function () {
       networkController: getMockNetworkController(),
       provider,
       getProviderConfig: MOCK_GET_PROVIDER_CONFIG,
-      tokenRatesStore: MOCK_TOKEN_RATES_STORE,
+      getTokenRatesState: MOCK_TOKEN_RATES_STORE,
       fetchTradesInfo: fetchTradesInfoStub,
-      fetchSwapsQuoteRefreshTime: fetchSwapsQuoteRefreshTimeStub,
       getCurrentChainId: getCurrentChainIdStub,
+      getEIP1559GasFeeEstimates: getEIP1559GasFeeEstimatesStub,
     });
   };
 
@@ -198,7 +218,7 @@ describe('SwapsController', function () {
         networkController,
         provider,
         getProviderConfig: MOCK_GET_PROVIDER_CONFIG,
-        tokenRatesStore: MOCK_TOKEN_RATES_STORE,
+        getTokenRatesState: MOCK_TOKEN_RATES_STORE,
         fetchTradesInfo: fetchTradesInfoStub,
         getCurrentChainId: getCurrentChainIdStub,
       });
@@ -222,7 +242,7 @@ describe('SwapsController', function () {
         networkController,
         provider,
         getProviderConfig: MOCK_GET_PROVIDER_CONFIG,
-        tokenRatesStore: MOCK_TOKEN_RATES_STORE,
+        getTokenRatesState: MOCK_TOKEN_RATES_STORE,
         fetchTradesInfo: fetchTradesInfoStub,
         getCurrentChainId: getCurrentChainIdStub,
       });
@@ -246,7 +266,7 @@ describe('SwapsController', function () {
         networkController,
         provider,
         getProviderConfig: MOCK_GET_PROVIDER_CONFIG,
-        tokenRatesStore: MOCK_TOKEN_RATES_STORE,
+        getTokenRatesState: MOCK_TOKEN_RATES_STORE,
         fetchTradesInfo: fetchTradesInfoStub,
         getCurrentChainId: getCurrentChainIdStub,
       });
@@ -360,7 +380,9 @@ describe('SwapsController', function () {
         assert.strictEqual(gasEstimate, bufferedGasLimit);
         assert.strictEqual(
           gasEstimateWithRefund,
-          new BigNumber(maxGas, 10).minus(estimatedRefund, 10).toString(16),
+          `0x${new BigNumber(maxGas, 10)
+            .minus(estimatedRefund, 10)
+            .toString(16)}`,
         );
       });
 
@@ -657,7 +679,6 @@ describe('SwapsController', function () {
 
       it('calls fetchTradesInfo with the given fetchParams and returns the correct quotes', async function () {
         fetchTradesInfoStub.resolves(getMockQuotes());
-        fetchSwapsQuoteRefreshTimeStub.resolves(getMockQuoteRefreshTime());
 
         // Make it so approval is not required
         sandbox
@@ -679,7 +700,7 @@ describe('SwapsController', function () {
           isBestQuote: true,
           // TODO: find a way to calculate these values dynamically
           gasEstimate: 2000000,
-          gasEstimateWithRefund: 'b8cae',
+          gasEstimateWithRefund: '0xb8cae',
           savings: {
             fee: '0',
             metaMaskFee: '0.5050505050505050505',
@@ -687,15 +708,14 @@ describe('SwapsController', function () {
             total: '5.4949494949494949495',
             medianMetaMaskFee: '0.44444444444444444444',
           },
-          ethFee: '33554432',
-          overallValueOfQuote: '-33554382',
+          ethFee: '5.033165',
+          overallValueOfQuote: '44.966835',
           metaMaskFeeInEth: '0.5050505050505050505',
           ethValueOfTokens: '50',
         });
         assert.strictEqual(
           fetchTradesInfoStub.calledOnceWithExactly(MOCK_FETCH_PARAMS, {
             ...MOCK_FETCH_METADATA,
-            useNewSwapsApi: false,
           }),
           true,
         );
@@ -703,7 +723,6 @@ describe('SwapsController', function () {
 
       it('performs the allowance check', async function () {
         fetchTradesInfoStub.resolves(getMockQuotes());
-        fetchSwapsQuoteRefreshTimeStub.resolves(getMockQuoteRefreshTime());
 
         // Make it so approval is not required
         const allowanceStub = sandbox
@@ -727,7 +746,6 @@ describe('SwapsController', function () {
 
       it('gets the gas limit if approval is required', async function () {
         fetchTradesInfoStub.resolves(MOCK_QUOTES_APPROVAL_REQUIRED);
-        fetchSwapsQuoteRefreshTimeStub.resolves(getMockQuoteRefreshTime());
 
         // Ensure approval is required
         sandbox
@@ -753,7 +771,6 @@ describe('SwapsController', function () {
 
       it('marks the best quote', async function () {
         fetchTradesInfoStub.resolves(getMockQuotes());
-        fetchSwapsQuoteRefreshTimeStub.resolves(getMockQuoteRefreshTime());
 
         // Make it so approval is not required
         sandbox
@@ -784,7 +801,6 @@ describe('SwapsController', function () {
         };
         const quotes = { ...getMockQuotes(), [bestAggId]: bestQuote };
         fetchTradesInfoStub.resolves(quotes);
-        fetchSwapsQuoteRefreshTimeStub.resolves(getMockQuoteRefreshTime());
 
         // Make it so approval is not required
         sandbox
@@ -802,16 +818,16 @@ describe('SwapsController', function () {
 
       it('does not mark as best quote if no conversion rate exists for destination token', async function () {
         fetchTradesInfoStub.resolves(getMockQuotes());
-        fetchSwapsQuoteRefreshTimeStub.resolves(getMockQuoteRefreshTime());
 
         // Make it so approval is not required
         sandbox
           .stub(swapsController, '_getERC20Allowance')
           .resolves(ethers.BigNumber.from(1));
 
-        swapsController.tokenRatesStore.updateState({
+        swapsController.getTokenRatesState = () => ({
           contractExchangeRates: {},
         });
+
         const [newQuotes, topAggId] = await swapsController.fetchAndSetQuotes(
           MOCK_FETCH_PARAMS,
           MOCK_FETCH_METADATA,
@@ -830,6 +846,11 @@ describe('SwapsController', function () {
           ...EMPTY_INIT_STATE.swapsState,
           tokens: old.tokens,
           swapsQuoteRefreshTime: old.swapsQuoteRefreshTime,
+          swapsQuotePrefetchingRefreshTime:
+            old.swapsQuotePrefetchingRefreshTime,
+          swapsStxGetTransactionsRefreshTime:
+            old.swapsStxGetTransactionsRefreshTime,
+          swapsStxBatchStatusRefreshTime: old.swapsStxBatchStatusRefreshTime,
         });
       });
 
@@ -875,15 +896,21 @@ describe('SwapsController', function () {
         const tokens = 'test';
         const fetchParams = 'test';
         const swapsFeatureIsLive = false;
-        const useNewSwapsApi = false;
+        const swapsFeatureFlags = {};
         const swapsQuoteRefreshTime = 0;
+        const swapsQuotePrefetchingRefreshTime = 0;
+        const swapsStxBatchStatusRefreshTime = 0;
+        const swapsStxGetTransactionsRefreshTime = 0;
         swapsController.store.updateState({
           swapsState: {
             tokens,
             fetchParams,
             swapsFeatureIsLive,
-            useNewSwapsApi,
+            swapsFeatureFlags,
             swapsQuoteRefreshTime,
+            swapsQuotePrefetchingRefreshTime,
+            swapsStxBatchStatusRefreshTime,
+            swapsStxGetTransactionsRefreshTime,
           },
         });
 
@@ -896,6 +923,7 @@ describe('SwapsController', function () {
           fetchParams,
           swapsFeatureIsLive,
           swapsQuoteRefreshTime,
+          swapsQuotePrefetchingRefreshTime,
         });
       });
     });
@@ -1373,8 +1401,4 @@ function getTopQuoteAndSavingsBaseExpectedResults() {
       ethValueOfTokens: '1.9305',
     },
   };
-}
-
-function getMockQuoteRefreshTime() {
-  return 45000;
 }

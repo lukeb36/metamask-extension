@@ -1,17 +1,13 @@
 const { strict: assert } = require('assert');
-const { withFixtures } = require('../helpers');
+const { convertToHexValue, withFixtures } = require('../helpers');
 
 describe('Deploy contract and call contract methods', function () {
-  let windowHandles;
-  let extension;
-  let popup;
-  let dapp;
   const ganacheOptions = {
     accounts: [
       {
         secretKey:
           '0x7C9529A67102755B7E6102D6D950AC5D5863C98713805CEC576B945B15B71EAC',
-        balance: 25000000000000000000,
+        balance: convertToHexValue(25000000000000000000),
       },
     ],
   };
@@ -19,7 +15,7 @@ describe('Deploy contract and call contract methods', function () {
     await withFixtures(
       {
         dapp: true,
-        fixtures: 'imported-account',
+        fixtures: 'connected-state',
         ganacheOptions,
         title: this.test.title,
       },
@@ -28,32 +24,21 @@ describe('Deploy contract and call contract methods', function () {
         await driver.fill('#password', 'correct horse battery staple');
         await driver.press('#password', driver.Key.ENTER);
 
-        // connects the dapp
+        // deploy contract
         await driver.openNewPage('http://127.0.0.1:8080/');
-        await driver.clickElement({ text: 'Connect', tag: 'button' });
+        await driver.clickElement('#deployButton');
         await driver.waitUntilXWindowHandles(3);
-        windowHandles = await driver.getAllWindowHandles();
-        extension = windowHandles[0];
-        dapp = await driver.switchToWindowWithTitle(
+        let windowHandles = await driver.getAllWindowHandles();
+        const extension = windowHandles[0];
+        const dapp = await driver.switchToWindowWithTitle(
           'E2E Test Dapp',
           windowHandles,
         );
-        popup = windowHandles.find(
-          (handle) => handle !== extension && handle !== dapp,
-        );
-        await driver.switchToWindow(popup);
-        await driver.clickElement({ text: 'Next', tag: 'button' });
-        await driver.clickElement({ text: 'Connect', tag: 'button' });
-        await driver.waitUntilXWindowHandles(2);
-
-        // creates a deploy contract transaction
-        await driver.switchToWindow(dapp);
-        await driver.clickElement('#deployButton');
-
         // displays the contract creation data
-        await driver.switchToWindow(extension);
-        await driver.clickElement('[data-testid="home__activity-tab"]');
-        await driver.clickElement({ text: 'Contract Deployment', tag: 'h2' });
+        await driver.switchToWindowWithTitle(
+          'MetaMask Notification',
+          windowHandles,
+        );
         await driver.clickElement({ text: 'Data', tag: 'button' });
         await driver.findElement({ text: '127.0.0.1', tag: 'div' });
         const confirmDataDiv = await driver.findElement(
@@ -68,6 +53,9 @@ describe('Deploy contract and call contract methods', function () {
         // confirms a deploy contract transaction
         await driver.clickElement({ text: 'Details', tag: 'button' });
         await driver.clickElement({ text: 'Confirm', tag: 'button' });
+        await driver.waitUntilXWindowHandles(2);
+        await driver.switchToWindow(extension);
+        await driver.clickElement('[data-testid="home__activity-tab"]');
         await driver.waitForSelector(
           '.transaction-list__completed-transactions .transaction-list-item:nth-of-type(1)',
           { timeout: 10000 },
@@ -85,7 +73,12 @@ describe('Deploy contract and call contract methods', function () {
           'MetaMask Notification',
           windowHandles,
         );
+        await driver.waitForSelector({
+          css: '.confirm-page-container-summary__action__name',
+          text: 'Deposit',
+        });
         await driver.clickElement({ text: 'Confirm', tag: 'button' });
+        await driver.waitUntilXWindowHandles(2);
         await driver.switchToWindow(extension);
         await driver.waitForSelector(
           '.transaction-list__completed-transactions .transaction-list-item:nth-of-type(2)',
@@ -108,7 +101,12 @@ describe('Deploy contract and call contract methods', function () {
           'MetaMask Notification',
           windowHandles,
         );
+        await driver.waitForSelector({
+          css: '.confirm-page-container-summary__action__name',
+          text: 'Withdraw',
+        });
         await driver.clickElement({ text: 'Confirm', tag: 'button' });
+        await driver.waitUntilXWindowHandles(2);
         await driver.switchToWindow(extension);
         await driver.waitForSelector(
           '.transaction-list__completed-transactions .transaction-list-item:nth-of-type(3)',

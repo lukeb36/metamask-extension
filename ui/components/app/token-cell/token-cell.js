@@ -21,7 +21,6 @@ export default function TokenCell({
   const t = useI18nContext();
 
   const formattedFiat = useTokenFiatAmount(address, string, symbol);
-
   const warning = balanceError ? (
     <span>
       {t('troubleTokenBalances')}
@@ -30,7 +29,7 @@ export default function TokenCell({
         rel="noopener noreferrer"
         target="_blank"
         onClick={(event) => event.stopPropagation()}
-        style={{ color: '#F7861C' }}
+        style={{ color: 'var(--color-warning-default)' }}
       >
         {t('here')}
       </a>

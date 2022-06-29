@@ -1,12 +1,14 @@
 import EventEmitter from 'events';
-import React, { useContext, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useContext, useRef, useState, useEffect } from 'react';
+import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
 import { useHistory } from 'react-router-dom';
+import isEqual from 'lodash/isEqual';
 import { getBlockExplorerLink } from '@metamask/etherscan-link';
 import { I18nContext } from '../../../contexts/i18n';
-import { useNewMetricEvent } from '../../../hooks/useMetricEvent';
-import { MetaMetricsContext } from '../../../contexts/metametrics.new';
+import { SUPPORT_LINK } from '../../../helpers/constants/common';
+import { MetaMetricsContext } from '../../../contexts/metametrics';
+import { EVENT } from '../../../../shared/constants/metametrics';
 
 import {
   getCurrentChainId,
@@ -15,6 +17,7 @@ import {
   getUSDConversionRate,
   isHardwareWallet,
   getHardwareWalletType,
+  getSwapsDefaultToken,
 } from '../../../selectors';
 
 import {
@@ -26,6 +29,12 @@ import {
   navigateBackToBuildQuote,
   prepareForRetryGetQuotes,
   prepareToLeaveSwaps,
+  getSmartTransactionsOptInStatus,
+  getSmartTransactionsEnabled,
+  getCurrentSmartTransactionsEnabled,
+  getFromTokenInputValue,
+  getMaxSlippage,
+  setSwapsFromToken,
 } from '../../../ducks/swaps/swaps';
 import Mascot from '../../../components/ui/mascot';
 import Box from '../../../components/ui/box';
@@ -42,6 +51,7 @@ import { isSwapsDefaultTokenSymbol } from '../../../../shared/modules/swaps.util
 import PulseLoader from '../../../components/ui/pulse-loader';
 
 import { ASSET_ROUTE, DEFAULT_ROUTE } from '../../../helpers/constants/routes';
+import { stopPollingForQuotes } from '../../../store/actions';
 
 import { getRenderableNetworkFeesForQuote } from '../swaps.util';
 import SwapsFooter from '../swaps-footer';
@@ -57,24 +67,25 @@ export default function AwaitingSwap({
   txHash,
   tokensReceived,
   submittingSwap,
-  inputValue,
-  maxSlippage,
 }) {
   const t = useContext(I18nContext);
-  const metaMetricsEvent = useContext(MetaMetricsContext);
+  const trackEvent = useContext(MetaMetricsContext);
   const history = useHistory();
   const dispatch = useDispatch();
   const animationEventEmitter = useRef(new EventEmitter());
 
-  const fetchParams = useSelector(getFetchParams);
+  const fetchParams = useSelector(getFetchParams, isEqual);
   const { destinationTokenInfo, sourceTokenInfo } = fetchParams?.metaData || {};
-  const usedQuote = useSelector(getUsedQuote);
-  const approveTxParams = useSelector(getApproveTxParams);
+  const fromTokenInputValue = useSelector(getFromTokenInputValue);
+  const maxSlippage = useSelector(getMaxSlippage);
+  const usedQuote = useSelector(getUsedQuote, isEqual);
+  const approveTxParams = useSelector(getApproveTxParams, shallowEqual);
   const swapsGasPrice = useSelector(getUsedSwapsGasPrice);
   const currentCurrency = useSelector(getCurrentCurrency);
   const usdConversionRate = useSelector(getUSDConversionRate);
   const chainId = useSelector(getCurrentChainId);
-  const rpcPrefs = useSelector(getRpcPrefsForCurrentProvider);
+  const rpcPrefs = useSelector(getRpcPrefsForCurrentProvider, shallowEqual);
+  const defaultSwapsToken = useSelector(getSwapsDefaultToken, isEqual);
 
   const [trackedQuotesExpiredEvent, setTrackedQuotesExpiredEvent] = useState(
     false,
@@ -99,6 +110,13 @@ export default function AwaitingSwap({
 
   const hardwareWalletUsed = useSelector(isHardwareWallet);
   const hardwareWalletType = useSelector(getHardwareWalletType);
+  const smartTransactionsOptInStatus = useSelector(
+    getSmartTransactionsOptInStatus,
+  );
+  const smartTransactionsEnabled = useSelector(getSmartTransactionsEnabled);
+  const currentSmartTransactionsEnabled = useSelector(
+    getCurrentSmartTransactionsEnabled,
+  );
   const sensitiveProperties = {
     token_from: sourceTokenInfo?.symbol,
     token_from_amount: fetchParams?.value,
@@ -109,17 +127,10 @@ export default function AwaitingSwap({
     gas_fees: feeinUnformattedFiat,
     is_hardware_wallet: hardwareWalletUsed,
     hardware_wallet_type: hardwareWalletType,
+    stx_enabled: smartTransactionsEnabled,
+    current_stx_enabled: currentSmartTransactionsEnabled,
+    stx_user_opt_in: smartTransactionsOptInStatus,
   };
-  const quotesExpiredEvent = useNewMetricEvent({
-    event: 'Quotes Timed Out',
-    sensitiveProperties,
-    category: 'swaps',
-  });
-  const makeAnotherSwapEvent = useNewMetricEvent({
-    event: 'Make Another Swap',
-    sensitiveProperties,
-    category: 'swaps',
-  });
 
   const baseNetworkUrl =
     rpcPrefs.blockExplorerUrl ??
@@ -152,11 +163,11 @@ export default function AwaitingSwap({
       <a
         className="awaiting-swap__support-link"
         key="awaiting-swap-support-link"
-        href="https://support.metamask.io"
+        href={SUPPORT_LINK}
         target="_blank"
         rel="noopener noreferrer"
       >
-        support.metamask.io
+        {new URL(SUPPORT_LINK).hostname}
       </a>,
     ]);
     submitText = t('tryAgain');
@@ -176,7 +187,11 @@ export default function AwaitingSwap({
 
     if (!trackedQuotesExpiredEvent) {
       setTrackedQuotesExpiredEvent(true);
-      quotesExpiredEvent();
+      trackEvent({
+        event: 'Quotes Timed Out',
+        category: EVENT.CATEGORIES.SWAPS,
+        sensitiveProperties,
+      });
     }
   } else if (errorKey === ERROR_FETCHING_QUOTES) {
     headerText = t('swapFetchingQuotesErrorTitle');
@@ -238,9 +253,14 @@ export default function AwaitingSwap({
       <Box marginBottom={3}>
         <a
           href="#"
-          onClick={() => {
-            makeAnotherSwapEvent();
-            dispatch(navigateBackToBuildQuote(history));
+          onClick={async () => {
+            trackEvent({
+              event: 'Make Another Swap',
+              category: EVENT.CATEGORIES.SWAPS,
+              sensitiveProperties,
+            });
+            await dispatch(navigateBackToBuildQuote(history));
+            dispatch(setSwapsFromToken(defaultSwapsToken));
           }}
         >
           {t('makeAnotherSwap')}
@@ -248,6 +268,13 @@ export default function AwaitingSwap({
       </Box>
     );
   };
+
+  useEffect(() => {
+    if (errorKey) {
+      // If there was an error, stop polling for quotes.
+      dispatch(stopPollingForQuotes());
+    }
+  }, [dispatch, errorKey]);
 
   return (
     <div className="awaiting-swap">
@@ -261,10 +288,10 @@ export default function AwaitingSwap({
         )}
         <div className="awaiting-swap__status-image">{statusImage}</div>
         <div className="awaiting-swap__header">{headerText}</div>
-        <div className="awaiting-swap__main-descrption">{descriptionText}</div>
+        <div className="awaiting-swap__main-description">{descriptionText}</div>
         {content}
       </div>
-      {!errorKey && swapComplete && <MakeAnotherSwap />}
+      {!errorKey && swapComplete ? <MakeAnotherSwap /> : null}
       <SwapsFooter
         onSubmit={async () => {
           if (errorKey === OFFLINE_FOR_MAINTENANCE) {
@@ -275,9 +302,9 @@ export default function AwaitingSwap({
             await dispatch(
               fetchQuotesAndSetQuoteState(
                 history,
-                inputValue,
+                fromTokenInputValue,
                 maxSlippage,
-                metaMetricsEvent,
+                trackEvent,
               ),
             );
           } else if (errorKey) {
@@ -313,6 +340,4 @@ AwaitingSwap.propTypes = {
     CONTRACT_DATA_DISABLED_ERROR,
   ]),
   submittingSwap: PropTypes.bool,
-  inputValue: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-  maxSlippage: PropTypes.number,
 };

@@ -2,13 +2,19 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import PageContainer from '../../../ui/page-container';
 import { Tabs, Tab } from '../../../ui/tabs';
+import {
+  disconnectGasFeeEstimatePoller,
+  getGasFeeEstimatesAndStartPolling,
+  addPollingTokenToAppState,
+  removePollingTokenFromAppState,
+} from '../../../../store/actions';
+import { EVENT } from '../../../../../shared/constants/metametrics';
 import AdvancedTabContent from './advanced-tab-content';
 import BasicTabContent from './basic-tab-content';
 
 export default class GasModalPageContainer extends Component {
   static contextTypes = {
     t: PropTypes.func,
-    metricsEvent: PropTypes.func,
     trackEvent: PropTypes.func,
   };
 
@@ -17,7 +23,6 @@ export default class GasModalPageContainer extends Component {
     updateCustomGasPrice: PropTypes.func,
     updateCustomGasLimit: PropTypes.func,
     insufficientBalance: PropTypes.bool,
-    fetchBasicGasEstimates: PropTypes.func,
     gasPriceButtonGroupProps: PropTypes.object,
     infoRowProps: PropTypes.shape({
       originalTotalFiat: PropTypes.string,
@@ -38,8 +43,38 @@ export default class GasModalPageContainer extends Component {
     customPriceIsExcessive: PropTypes.bool.isRequired,
   };
 
+  constructor(props) {
+    super(props);
+    this.state = {
+      pollingToken: undefined,
+    };
+  }
+
   componentDidMount() {
-    this.props.fetchBasicGasEstimates();
+    this._isMounted = true;
+    getGasFeeEstimatesAndStartPolling().then((pollingToken) => {
+      if (this._isMounted) {
+        addPollingTokenToAppState(pollingToken);
+        this.setState({ pollingToken });
+      } else {
+        disconnectGasFeeEstimatePoller(pollingToken);
+        removePollingTokenFromAppState(pollingToken);
+      }
+    });
+    window.addEventListener('beforeunload', this._beforeUnload);
+  }
+
+  _beforeUnload = () => {
+    this._isMounted = false;
+    if (this.state.pollingToken) {
+      disconnectGasFeeEstimatePoller(this.state.pollingToken);
+      removePollingTokenFromAppState(this.state.pollingToken);
+    }
+  };
+
+  componentWillUnmount() {
+    this._beforeUnload();
+    window.removeEventListener('beforeunload', this._beforeUnload);
   }
 
   renderBasicTabContent(gasPriceButtonGroupProps) {
@@ -184,11 +219,12 @@ export default class GasModalPageContainer extends Component {
           onClose={() => cancelAndClose()}
           onSubmit={() => {
             if (isSpeedUp) {
-              this.context.metricsEvent({
-                eventOpts: {
-                  category: 'Navigation',
+              this.context.trackEvent({
+                category: EVENT.CATEGORIES.NAVIGATION,
+                event: 'Saved "Speed Up"',
+                properties: {
                   action: 'Activity Log',
-                  name: 'Saved "Speed Up"',
+                  legacy_event: true,
                 },
               });
             }

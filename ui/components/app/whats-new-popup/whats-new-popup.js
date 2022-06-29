@@ -11,8 +11,12 @@ import Popover from '../../ui/popover';
 import Typography from '../../ui/typography';
 import { updateViewedNotifications } from '../../../store/actions';
 import { getTranslatedUINoficiations } from '../../../../shared/notifications';
-import { getSortedNotificationsToShow } from '../../../selectors';
-import { BUILD_QUOTE_ROUTE } from '../../../helpers/constants/routes';
+import { getSortedAnnouncementsToShow } from '../../../selectors';
+import {
+  BUILD_QUOTE_ROUTE,
+  ADVANCED_ROUTE,
+  EXPERIMENTAL_ROUTE,
+} from '../../../helpers/constants/routes';
 import { TYPOGRAPHY } from '../../../helpers/constants/design-system';
 
 function getActionFunctionById(id, history) {
@@ -37,6 +41,18 @@ function getActionFunctionById(id, history) {
       global.platform.openTab({
         url: 'https://metamask.zendesk.com/hc/en-us/articles/360060826432',
       });
+    },
+    8: () => {
+      updateViewedNotifications({ 8: true });
+      history.push(ADVANCED_ROUTE);
+    },
+    10: () => {
+      updateViewedNotifications({ 10: true });
+      history.push(`${ADVANCED_ROUTE}#token-description`);
+    },
+    12: () => {
+      updateViewedNotifications({ 12: true });
+      history.push(EXPERIMENTAL_ROUTE);
     },
   };
 
@@ -103,7 +119,6 @@ const renderFirstNotification = (notification, idRefMap, history, isLast) => {
         <Button
           type="secondary"
           className="whats-new-popup__button"
-          rounded
           onClick={actionFunction}
         >
           {actionText}
@@ -157,7 +172,7 @@ export default function WhatsNewPopup({ onClose }) {
   const t = useContext(I18nContext);
   const history = useHistory();
 
-  const notifications = useSelector(getSortedNotificationsToShow);
+  const notifications = useSelector(getSortedAnnouncementsToShow);
   const locale = useSelector(getCurrentLocale);
 
   const [seenNotifications, setSeenNotifications] = useState({});

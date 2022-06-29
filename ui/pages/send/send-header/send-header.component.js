@@ -5,12 +5,12 @@ import PageContainerHeader from '../../../components/ui/page-container/page-cont
 import { getMostRecentOverviewPage } from '../../../ducks/history/history';
 import { useI18nContext } from '../../../hooks/useI18nContext';
 import {
-  ASSET_TYPES,
   getSendAsset,
   getSendStage,
   resetSendState,
   SEND_STAGES,
 } from '../../../ducks/send';
+import { ASSET_TYPES } from '../../../../shared/constants/transaction';
 
 export default function SendHeader() {
   const history = useHistory();
@@ -27,11 +27,8 @@ export default function SendHeader() {
 
   let title = asset.type === ASSET_TYPES.NATIVE ? t('send') : t('sendTokens');
 
-  if (
-    stage === SEND_STAGES.ADD_RECIPIENT ||
-    stage === SEND_STAGES.UNINITIALIZED
-  ) {
-    title = t('addRecipient');
+  if (stage === SEND_STAGES.ADD_RECIPIENT || stage === SEND_STAGES.INACTIVE) {
+    title = t('sendTo');
   } else if (stage === SEND_STAGES.EDIT) {
     title = t('edit');
   }
@@ -41,7 +38,10 @@ export default function SendHeader() {
       className="send__header"
       onClose={onClose}
       title={title}
-      headerCloseText={t('cancel')}
+      headerCloseText={
+        stage === SEND_STAGES.EDIT ? t('cancelEdit') : t('cancel')
+      }
+      hideClose={stage === SEND_STAGES.DRAFT}
     />
   );
 }

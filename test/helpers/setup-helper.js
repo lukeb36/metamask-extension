@@ -4,6 +4,10 @@ import Adapter from 'enzyme-adapter-react-16';
 import log from 'loglevel';
 import { JSDOM } from 'jsdom';
 
+process.env.IN_TEST = true;
+
+global.chrome = { runtime: { id: 'testid' } };
+
 nock.disableNetConnect();
 nock.enableNetConnect('localhost');
 
@@ -56,21 +60,20 @@ const popoverContent = window.document.createElement('div');
 popoverContent.setAttribute('id', 'popover-content');
 window.document.body.appendChild(popoverContent);
 
-// delete AbortController added by jsdom so it can be polyfilled correctly below
-delete window.AbortController;
-
 // fetch
 const fetch = require('node-fetch');
 
 const { Headers, Request, Response } = fetch;
 Object.assign(window, { fetch, Headers, Request, Response });
 
-require('abortcontroller-polyfill/dist/polyfill-patch-fetch');
-
 // localStorage
 window.localStorage = {
   removeItem: () => null,
 };
+
+// used for native dark/light mode detection
+window.matchMedia = () => true;
+
 // override @metamask/logo
 window.requestAnimationFrame = () => undefined;
 
@@ -81,4 +84,12 @@ if (!window.crypto) {
 if (!window.crypto.getRandomValues) {
   // eslint-disable-next-line node/global-require
   window.crypto.getRandomValues = require('polyfill-crypto.getrandomvalues');
+}
+
+// Used to test `clearClipboard` function
+if (!window.navigator.clipboard) {
+  window.navigator.clipboard = {};
+}
+if (!window.navigator.clipboard.writeText) {
+  window.navigator.clipboard.writeText = () => undefined;
 }

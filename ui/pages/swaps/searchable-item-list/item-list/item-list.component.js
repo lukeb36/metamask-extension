@@ -11,8 +11,10 @@ import {
   getCurrentChainId,
   getRpcPrefsForCurrentProvider,
 } from '../../../../selectors';
+import { EVENT } from '../../../../../shared/constants/metametrics';
 import { SWAPS_CHAINID_DEFAULT_BLOCK_EXPLORER_URL_MAP } from '../../../../../shared/constants/swaps';
-import { useNewMetricEvent } from '../../../../hooks/useMetricEvent';
+import { getURLHostName } from '../../../../helpers/utils/util';
+import { MetaMetricsContext } from '../../../../contexts/metametrics';
 
 export default function ItemList({
   results = [],
@@ -36,30 +38,22 @@ export default function ItemList({
     null;
 
   const blockExplorerLabel = rpcPrefs.blockExplorerUrl
-    ? new URL(blockExplorerLink).hostname
+    ? getURLHostName(blockExplorerLink)
     : t('etherscan');
-
-  const blockExplorerLinkClickedEvent = useNewMetricEvent({
-    category: 'Swaps',
-    event: 'Clicked Block Explorer Link',
-    properties: {
-      link_type: 'Token Tracker',
-      action: 'Verify Contract Address',
-      block_explorer_domain: blockExplorerLink
-        ? new URL(blockExplorerLink)?.hostname
-        : '',
-    },
-  });
+  const trackEvent = useContext(MetaMetricsContext);
 
   // If there is a token for import based on a contract address, it's the only one in the list.
   const hasTokenForImport = results.length === 1 && results[0].notImported;
+  const placeholder = Placeholder ? (
+    <Placeholder searchQuery={searchQuery} />
+  ) : null;
   return results.length === 0 ? (
-    Placeholder && <Placeholder searchQuery={searchQuery} />
+    placeholder
   ) : (
     <div className="searchable-item-list">
-      {listTitle && (
+      {listTitle ? (
         <div className="searchable-item-list__title">{listTitle}</div>
-      )}
+      ) : null}
       <div
         className={classnames(
           'searchable-item-list__list-container',
@@ -101,46 +95,46 @@ export default function ItemList({
               onKeyUp={(e) => e.key === 'Enter' && onClick()}
               key={`searchable-item-list-item-${i}`}
             >
-              {(iconUrl || primaryLabel) && (
+              {iconUrl || primaryLabel ? (
                 <UrlIcon url={iconUrl} name={primaryLabel} />
-              )}
-              {!(iconUrl || primaryLabel) && identiconAddress && (
+              ) : null}
+              {!(iconUrl || primaryLabel) && identiconAddress ? (
                 <div className="searchable-item-list__identicon">
                   <Identicon address={identiconAddress} diameter={24} />
                 </div>
-              )}
-              {IconComponent && <IconComponent />}
+              ) : null}
+              {IconComponent ? <IconComponent /> : null}
               <div className="searchable-item-list__labels">
                 <div className="searchable-item-list__item-labels">
-                  {primaryLabel && (
+                  {primaryLabel ? (
                     <span className="searchable-item-list__primary-label">
                       {primaryLabel}
                     </span>
-                  )}
-                  {secondaryLabel && (
+                  ) : null}
+                  {secondaryLabel ? (
                     <span className="searchable-item-list__secondary-label">
                       {secondaryLabel}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 {!hideRightLabels &&
-                  (rightPrimaryLabel || rightSecondaryLabel) && (
-                    <div className="searchable-item-list__right-labels">
-                      {rightPrimaryLabel && (
-                        <span className="searchable-item-list__right-primary-label">
-                          {rightPrimaryLabel}
-                        </span>
-                      )}
-                      {rightSecondaryLabel && (
-                        <span className="searchable-item-list__right-secondary-label">
-                          {rightSecondaryLabel}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                (rightPrimaryLabel || rightSecondaryLabel) ? (
+                  <div className="searchable-item-list__right-labels">
+                    {rightPrimaryLabel ? (
+                      <span className="searchable-item-list__right-primary-label">
+                        {rightPrimaryLabel}
+                      </span>
+                    ) : null}
+                    {rightSecondaryLabel ? (
+                      <span className="searchable-item-list__right-secondary-label">
+                        {rightSecondaryLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               {result.notImported && (
-                <Button type="confirm" onClick={onClick} rounded>
+                <Button type="primary" onClick={onClick}>
                   {t('import')}
                 </Button>
               )}
@@ -160,7 +154,17 @@ export default function ItemList({
                   <a
                     key="searchable-item-list__etherscan-link"
                     onClick={() => {
-                      blockExplorerLinkClickedEvent();
+                      trackEvent({
+                        event: 'Clicked Block Explorer Link',
+                        category: EVENT.CATEGORIES.SWAPS,
+                        properties: {
+                          link_type: 'Token Tracker',
+                          action: 'Verify Contract Address',
+                          block_explorer_domain: getURLHostName(
+                            blockExplorerLink,
+                          ),
+                        },
+                      });
                       global.platform.openTab({
                         url: blockExplorerLink,
                       });
