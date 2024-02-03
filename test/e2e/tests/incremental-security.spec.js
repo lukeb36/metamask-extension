@@ -1,6 +1,8 @@
 const { strict: assert } = require('assert');
-const { convertToHexValue, withFixtures, tinyDelayMs } = require('../helpers');
-const enLocaleMessages = require('../../../app/_locales/en/messages.json');
+const { convertToHexValue, withFixtures, openDapp } = require('../helpers');
+const FixtureBuilder = require('../fixture-builder');
+
+const WALLET_PASSWORD = 'correct horse battery staple';
 
 describe('Incremental Security', function () {
   const ganacheOptions = {
@@ -17,79 +19,84 @@ describe('Incremental Security', function () {
       },
     ],
   };
-  it('Back up Secret Recovery Phrase from backup reminder', async function () {
+
+  it('Back up Secret Recovery Phrase from backup reminder @no-mmi', async function () {
     await withFixtures(
       {
         dapp: true,
-        fixtures: 'onboarding',
+        fixtures: new FixtureBuilder({ onboarding: true }).build(),
         ganacheOptions,
-        title: this.test.title,
+        title: this.test.fullTitle(),
         failOnConsoleError: false,
         dappPath: 'send-eth-with-private-key-test',
       },
       async ({ driver }) => {
         await driver.navigate();
-        await driver.delay(tinyDelayMs);
+        // agree to terms of use
+        await driver.clickElement('[data-testid="onboarding-terms-checkbox"]');
 
-        // clicks the continue button on the welcome screen
-        await driver.findElement('.welcome-page__header');
-        await driver.clickElement({
-          text: enLocaleMessages.getStarted.message,
-          tag: 'button',
-        });
+        // welcome
+        await driver.clickElement('[data-testid="onboarding-create-wallet"]');
 
-        // clicks the "Create New Wallet" option
-        await driver.clickElement({ text: 'Create a Wallet', tag: 'button' });
+        // metrics
+        await driver.clickElement('[data-testid="metametrics-no-thanks"]');
 
-        // clicks the "No thanks" option on the metametrics opt-in screen
-        await driver.clickElement('.btn-secondary');
-
-        // accepts a secure password
+        // create password
         await driver.fill(
-          '.first-time-flow__form #create-password',
+          '[data-testid="create-password-new"]',
           'correct horse battery staple',
         );
         await driver.fill(
-          '.first-time-flow__form #confirm-password',
+          '[data-testid="create-password-confirm"]',
           'correct horse battery staple',
         );
-        await driver.clickElement('.first-time-flow__checkbox');
-        await driver.clickElement('.first-time-flow__form button');
+        await driver.clickElement('[data-testid="create-password-terms"]');
+        await driver.clickElement('[data-testid="create-password-wallet"]');
 
-        // renders the Secret Recovery Phrase intro screen'
-        await driver.clickElement('.seed-phrase-intro__left button');
-
-        // skips the Secret Recovery Phrase challenge
-        await driver.clickElement({
-          text: enLocaleMessages.remindMeLater.message,
-          tag: 'button',
-        });
-
+        // secure wallet later
+        await driver.clickElement('[data-testid="secure-wallet-later"]');
         await driver.clickElement(
-          '[data-testid="account-options-menu-button"]',
+          '[data-testid="skip-srp-backup-popover-checkbox"]',
         );
+        await driver.clickElement('[data-testid="skip-srp-backup"]');
+
+        // complete
+        await driver.clickElement('[data-testid="onboarding-complete-done"]');
+
+        // pin extension
+        await driver.clickElement('[data-testid="pin-extension-next"]');
+        await driver.clickElement('[data-testid="pin-extension-done"]');
+
+        // open account menu
+        await driver.clickElement('[data-testid="account-menu-icon"]');
         await driver.clickElement(
-          '[data-testid="account-options-menu__account-details"]',
+          '.multichain-account-list-item--selected [data-testid="account-list-item-menu-button"]',
         );
+        await driver.clickElement('[data-testid="account-list-menu-details"');
 
         // gets the current accounts address
-        const address = await driver.findElement('.qr-code__address');
+        const address = await driver.findElement(
+          '.qr-code .multichain-address-copy-button',
+        );
         const publicAddress = await address.getText();
 
         // wait for account modal to be visible
-        const accountModal = await driver.findVisibleElement('span .modal');
-
-        await driver.clickElement('.account-modal__close');
+        await driver.findVisibleElement(
+          '[data-testid="account-details-modal"]',
+        );
+        await driver.clickElement('button[aria-label="Close"]');
 
         // wait for account modal to be removed from DOM
-        await accountModal.waitForElementState('hidden');
+        await driver.waitForElementNotPresent(
+          '[data-testid="account-details-modal"]',
+        );
 
         // send to current account from dapp with different provider
         const windowHandles = await driver.getAllWindowHandles();
         const extension = windowHandles[0];
 
         // switched to Dapp
-        await driver.openNewPage('http://127.0.0.1:8080/');
+        await openDapp(driver);
 
         // sends eth to the current account
         await driver.fill('#address', publicAddress);
@@ -115,7 +122,7 @@ describe('Incremental Security', function () {
         // should show a backup reminder
         const backupReminder = await driver.findElements({
           xpath:
-            "//div[contains(@class, 'home-notification__text') and contains(text(), 'Backup your Secret Recovery Phrase to keep your wallet and funds secure')]",
+            "//div[contains(@class, 'home-notification__text') and contains(text(), 'Back up your Secret Recovery Phrase to keep your wallet and funds secure')]",
         });
         assert.equal(backupReminder.length, 1);
 
@@ -123,40 +130,36 @@ describe('Incremental Security', function () {
         await driver.clickElement('.home-notification__accept-button');
 
         // reveals the Secret Recovery Phrase
-        await driver.clickElement(
-          '.reveal-seed-phrase__secret-blocker .reveal-seed-phrase__reveal-button',
-        );
+        await driver.clickElement('[data-testid="secure-wallet-recommended"]');
 
-        const revealedSeedPhrase = await driver.findElement(
-          '.reveal-seed-phrase__secret-words',
-        );
-        const seedPhrase = await revealedSeedPhrase.getText();
-        assert.equal(seedPhrase.split(' ').length, 12);
-
-        await driver.clickElement({
-          text: enLocaleMessages.next.message,
-          tag: 'button',
-        });
-
-        // selecting the words from seedphrase
-        async function clickWordAndWait(word) {
-          await driver.clickElement(
-            `[data-testid="seed-phrase-sorted"] [data-testid="draggable-seed-${word}"]`,
-          );
-          await driver.delay(tinyDelayMs);
-        }
-
-        // can retype the Secret Recovery Phrase
-        const words = seedPhrase.split(' ');
-
-        for (const word of words) {
-          await clickWordAndWait(word);
-        }
+        await driver.fill('[placeholder="Password"]', WALLET_PASSWORD);
 
         await driver.clickElement({ text: 'Confirm', tag: 'button' });
+        await driver.waitForElementNotPresent(
+          '[data-testid="reveal-srp-modal"]',
+        );
 
-        // can click through the success screen
-        await driver.clickElement({ text: 'All Done', tag: 'button' });
+        const recoveryPhraseRevealButton = await driver.findClickableElement(
+          '[data-testid="recovery-phrase-reveal"]',
+        );
+        await recoveryPhraseRevealButton.click();
+
+        const chipTwo = await (
+          await driver.findElement('[data-testid="recovery-phrase-chip-2"]')
+        ).getText();
+        const chipThree = await (
+          await driver.findElement('[data-testid="recovery-phrase-chip-3"]')
+        ).getText();
+        const chipSeven = await (
+          await driver.findElement('[data-testid="recovery-phrase-chip-7"]')
+        ).getText();
+        await driver.clickElement('[data-testid="recovery-phrase-next"]');
+
+        // can retype the Secret Recovery Phrase
+        await driver.fill('[data-testid="recovery-phrase-input-2"]', chipTwo);
+        await driver.fill('[data-testid="recovery-phrase-input-3"]', chipThree);
+        await driver.fill('[data-testid="recovery-phrase-input-7"]', chipSeven);
+        await driver.clickElement('[data-testid="recovery-phrase-confirm"]');
 
         // should have the correct amount of eth
         currencyDisplay = await driver.waitForSelector({

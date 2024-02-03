@@ -1,141 +1,141 @@
-const { strict: assert } = require('assert');
-const { withFixtures } = require('../helpers');
+const {
+  defaultGanacheOptions,
+  withFixtures,
+  unlockWallet,
+  WINDOW_TITLES,
+} = require('../helpers');
+const FixtureBuilder = require('../fixture-builder');
 const { TEST_SNAPS_WEBSITE_URL } = require('./enums');
 
 describe('Test Snap manageState', function () {
   it('can pop up manageState snap and do update get and clear', async function () {
-    const ganacheOptions = {
-      accounts: [
-        {
-          secretKey:
-            '0x7C9529A67102755B7E6102D6D950AC5D5863C98713805CEC576B945B15B71EAC',
-          balance: 25000000000000000000,
-        },
-      ],
-    };
     await withFixtures(
       {
-        fixtures: 'imported-account',
-        ganacheOptions,
-        title: this.test.title,
-        driverOptions: {
-          type: 'flask',
-        },
+        fixtures: new FixtureBuilder().build(),
+        ganacheOptions: defaultGanacheOptions,
+        failOnConsoleError: false,
+        title: this.test.fullTitle(),
       },
       async ({ driver }) => {
-        await driver.navigate();
+        await unlockWallet(driver);
 
-        // enter pw into extension
-        await driver.fill('#password', 'correct horse battery staple');
-        await driver.press('#password', driver.Key.ENTER);
-
-        // navigate to test snaps page and connect
+        // navigate to test snaps page, then fill in the snapId
         await driver.driver.get(TEST_SNAPS_WEBSITE_URL);
-        await driver.fill('.snapId3', 'npm:@metamask/test-snap-managestate');
+        await driver.delay(1000);
+
+        // navigate to test snaps page and connect to manage-state snap
+        const snapButton1 = await driver.findElement('#connectmanage-state');
+        await driver.scrollToElement(snapButton1);
+        await driver.delay(1000);
+        await driver.clickElement('#connectmanage-state');
+        await driver.delay(1000);
+
+        // switch to metamask extension and click connect
+        const windowHandles = await driver.waitUntilXWindowHandles(
+          2,
+          1000,
+          10000,
+        );
+        await driver.switchToWindowWithTitle(
+          WINDOW_TITLES.Dialog,
+          windowHandles,
+        );
         await driver.clickElement({
-          text: 'Connect manageState Snap',
+          text: 'Connect',
           tag: 'button',
         });
 
-        // switch to metamask extension and click connect
-        await driver.waitUntilXWindowHandles(2, 5000, 10000);
-        let windowHandles = await driver.getAllWindowHandles();
-        await driver.switchToWindowWithTitle(
-          'MetaMask Notification',
-          windowHandles,
-        );
-        await driver.clickElement(
-          {
-            text: 'Connect',
-            tag: 'button',
-          },
-          10000,
-        );
+        await driver.waitForSelector({ text: 'Install' });
 
-        await driver.delay(2000);
-
-        // approve install of snap
-        await driver.waitUntilXWindowHandles(2, 5000, 10000);
-        windowHandles = await driver.getAllWindowHandles();
-        await driver.switchToWindowWithTitle(
-          'MetaMask Notification',
-          windowHandles,
-        );
         await driver.clickElement({
-          text: 'Approve & Install',
+          text: 'Install',
+          tag: 'button',
+        });
+
+        await driver.waitForSelector({ text: 'OK' });
+
+        await driver.clickElement({
+          text: 'OK',
           tag: 'button',
         });
 
         // fill and click send inputs on test snap page
-        await driver.waitUntilXWindowHandles(1, 5000, 10000);
-        windowHandles = await driver.getAllWindowHandles();
         await driver.switchToWindowWithTitle('Test Snaps', windowHandles);
-        await driver.fill('.dataManageState', '23');
-        await driver.clickElement({
-          text: 'Send data to manageState Snap',
-          tag: 'button',
+
+        // wait for npm installation success
+        await driver.waitForSelector({
+          css: '#connectmanage-state',
+          text: 'Reconnect to Manage State Snap',
         });
 
-        // check the results of the public key test
-        await driver.delay(2000);
-        const manageStateResult = await driver.findElement(
-          '.sendManageStateResult',
+        await driver.pasteIntoField('#dataManageState', '23');
+        const snapButton2 = await driver.findElement(
+          '#retrieveManageStateResult',
         );
-        assert.equal(await manageStateResult.getText(), 'true');
+        await driver.scrollToElement(snapButton2);
+        await driver.clickElement('#sendManageState');
 
-        // click get results
-        await driver.waitUntilXWindowHandles(1, 5000, 10000);
-        windowHandles = await driver.getAllWindowHandles();
-        await driver.switchToWindowWithTitle('Test Snaps', windowHandles);
-        await driver.clickElement({
-          text: 'Get data from manageState Snap',
-          tag: 'button',
+        // check the results of the public key test
+        await driver.waitForSelector({
+          css: '#sendManageStateResult',
+          text: 'true',
         });
 
         // check the results
-        await driver.delay(2000);
-        const retrieveManageStateResult = await driver.findElement(
-          '.retrieveManageStateResult',
-        );
-        assert.equal(
-          await retrieveManageStateResult.getText(),
-          '{"testState":["23"]}',
-        );
-
-        // click clear results
-        await driver.waitUntilXWindowHandles(1, 5000, 10000);
-        windowHandles = await driver.getAllWindowHandles();
-        await driver.switchToWindowWithTitle('Test Snaps', windowHandles);
-        await driver.clickElement({
-          text: 'Clear data of manageState Snap',
-          tag: 'button',
+        await driver.waitForSelector({
+          css: '#retrieveManageStateResult',
+          text: '"23"',
         });
 
-        // check if true
-        await driver.delay(2000);
-        const clearManageStateResult = await driver.findElement(
-          '.clearManageStateResult',
-        );
-        assert.equal(await clearManageStateResult.getText(), 'true');
+        // click clear results
+        await driver.clickElement('#clearManageState');
 
-        // click get results again
-        await driver.waitUntilXWindowHandles(1, 5000, 10000);
-        windowHandles = await driver.getAllWindowHandles();
-        await driver.switchToWindowWithTitle('Test Snaps', windowHandles);
-        await driver.clickElement({
-          text: 'Get data from manageState Snap',
-          tag: 'button',
+        // check if true
+        await driver.waitForSelector({
+          css: '#clearManageStateResult',
+          text: 'true',
         });
 
         // check result array is empty
-        await driver.delay(2000);
-        const retrieveManageStateResult2 = await driver.findElement(
-          '.retrieveManageStateResult',
-        );
-        assert.equal(
-          await retrieveManageStateResult2.getText(),
-          '{"testState":[]}',
-        );
+        await driver.waitForSelector({
+          css: '#retrieveManageStateResult',
+          text: '[]',
+        });
+
+        // repeat the same above steps to check unencrypted state management
+        // enter data and send
+        await driver.pasteIntoField('#dataUnencryptedManageState', '23');
+        const snapButton3 = await driver.findElement('#clearManageState');
+        await driver.scrollToElement(snapButton3);
+        await driver.delay(1000);
+        await driver.clickElement('#sendUnencryptedManageState');
+
+        // check the results of the public key test
+        await driver.waitForSelector({
+          css: '#sendUnencryptedManageStateResult',
+          text: 'true',
+        });
+
+        // check the results
+        await driver.waitForSelector({
+          css: '#retrieveManageStateUnencryptedResult',
+          text: '"23"',
+        });
+
+        // click clear results
+        await driver.clickElement('#clearUnencryptedManageState');
+
+        // check if true
+        await driver.waitForSelector({
+          css: '#clearUnencryptedManageStateResult',
+          text: 'true',
+        });
+
+        // check result array is empty
+        await driver.waitForSelector({
+          css: '#retrieveManageStateUnencryptedResult',
+          text: '[]',
+        });
       },
     );
   });

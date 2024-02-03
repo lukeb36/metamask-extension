@@ -1,14 +1,14 @@
 import React from 'react';
 import InfoTooltip from '../../ui/info-tooltip/info-tooltip';
 
-import { COLORS } from '../../../helpers/constants/design-system';
+import { TextColor } from '../../../helpers/constants/design-system';
 
+import { Icon, IconName } from '../../component-library';
 import README from './README.mdx';
 import TransactionDetailItem from '.';
 
 export default {
   title: 'Components/App/TransactionDetailItem',
-  id: __filename,
   component: TransactionDetailItem,
   parameters: {
     docs: {
@@ -21,7 +21,7 @@ export default {
       control: {
         type: 'select',
       },
-      options: Object.values(COLORS),
+      options: Object.values(TextColor),
     },
     detailText: { control: 'text' },
     detailTotal: { control: 'text' },
@@ -45,7 +45,7 @@ DefaultStory.args = {
     <>
       <strong>Estimated gas fee</strong>
       <InfoTooltip contentText="This is the tooltip text" position="top">
-        <i className="fa fa-info-circle" />
+        <Icon name={IconName.Info} />
       </InfoTooltip>
     </>
   ),

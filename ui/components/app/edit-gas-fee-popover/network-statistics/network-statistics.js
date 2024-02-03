@@ -1,14 +1,14 @@
 import React, { useContext } from 'react';
 import {
-  COLORS,
-  FONT_WEIGHT,
-  TYPOGRAPHY,
+  FontWeight,
+  TextColor,
+  TextVariant,
 } from '../../../../helpers/constants/design-system';
 import { isNullish } from '../../../../helpers/utils/util';
 import { formatGasFeeOrFeeRange } from '../../../../helpers/utils/gas';
 import { I18nContext } from '../../../../contexts/i18n';
 import { useGasFeeContext } from '../../../../contexts/gasFee';
-import Typography from '../../../ui/typography/typography';
+import { Text } from '../../../component-library';
 import { BaseFeeTooltip, PriorityFeeTooltip } from './tooltips';
 import StatusSlider from './status-slider';
 
@@ -29,14 +29,16 @@ const NetworkStatistics = () => {
 
   return (
     <div className="network-statistics">
-      <Typography
-        color={COLORS.TEXT_ALTERNATIVE}
-        fontWeight={FONT_WEIGHT.BOLD}
-        margin={[3, 0]}
-        variant={TYPOGRAPHY.H8}
+      <Text
+        color={TextColor.textAlternative}
+        fontWeight={FontWeight.Bold}
+        marginTop={3}
+        marginBottom={3}
+        variant={TextVariant.bodyXs}
+        as="h6"
       >
         {t('networkStatus')}
-      </Typography>
+      </Text>
       <div className="network-statistics__info">
         {isNullish(formattedLatestBaseFee) ? null : (
           <div

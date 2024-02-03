@@ -2,13 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
 
-import { ALERT_TYPES } from '../../../../shared/constants/alerts';
+import { AlertTypes } from '../../../../shared/constants/alerts';
 import Tooltip from '../../../components/ui/tooltip';
 import ToggleButton from '../../../components/ui/toggle-button';
 import { setAlertEnabledness } from '../../../store/actions';
 import { getAlertEnabledness } from '../../../ducks/metamask/metamask';
 import { useI18nContext } from '../../../hooks/useI18nContext';
 import { handleSettingsRefs } from '../../../helpers/utils/settings-search';
+import { Icon, IconName } from '../../../components/component-library';
 
 const AlertSettingsEntry = ({ alertId, description, title }) => {
   const t = useI18nContext();
@@ -30,7 +31,10 @@ const AlertSettingsEntry = ({ alertId, description, title }) => {
             title={description}
             wrapperClassName="alerts-tab__description"
           >
-            <i className="fa fa-info-circle alerts-tab__description__icon" />
+            <Icon
+              name={IconName.Info}
+              className="alerts-tab__description__icon"
+            />
           </Tooltip>
           <ToggleButton
             offLabel={t('off')}
@@ -54,11 +58,11 @@ const AlertsTab = () => {
   const t = useI18nContext();
 
   const alertConfig = {
-    [ALERT_TYPES.unconnectedAccount]: {
+    [AlertTypes.unconnectedAccount]: {
       title: t('alertSettingsUnconnectedAccount'),
       description: t('alertSettingsUnconnectedAccountDescription'),
     },
-    [ALERT_TYPES.web3ShimUsage]: {
+    [AlertTypes.web3ShimUsage]: {
       title: t('alertSettingsWeb3ShimUsage'),
       description: t('alertSettingsWeb3ShimUsageDescription'),
     },

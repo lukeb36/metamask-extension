@@ -1,4 +1,15 @@
 // Messages and descriptions for these locale keys are in app/_locales/en/messages.json
+
+/**
+ * I'm trying something new here, where notifications get names that are translated
+ * into numbers in only one place. This should make merge conflicts easier.
+ */
+export const NOTIFICATION_DROP_LEDGER_FIREFOX = 25;
+export const NOTIFICATION_OPEN_BETA_SNAPS = 26;
+export const NOTIFICATION_BUY_SELL_BUTTON = 27;
+export const NOTIFICATION_U2F_LEDGER_LIVE = 28;
+export const NOTIFICATION_BLOCKAID_DEFAULT = 29;
+
 export const UI_NOTIFICATIONS = {
   1: {
     id: 1,
@@ -48,7 +59,7 @@ export const UI_NOTIFICATIONS = {
   },
   10: {
     id: 10,
-    date: '2022-04-18',
+    date: '2022-09-15',
     image: {
       src: 'images/token-detection.svg',
       width: '100%',
@@ -56,7 +67,7 @@ export const UI_NOTIFICATIONS = {
   },
   11: {
     id: 11,
-    date: '2022-04-18',
+    date: '2022-09-15',
   },
   12: {
     id: 12,
@@ -66,10 +77,117 @@ export const UI_NOTIFICATIONS = {
       width: '100%',
     },
   },
+  13: {
+    id: 13,
+    date: '2022-09-15',
+  },
+  14: {
+    id: 14,
+    date: '2022-09-15',
+  },
+  15: {
+    id: 15,
+    date: '2022-09-15',
+  },
+  16: {
+    id: 16,
+    date: null,
+  },
+  17: {
+    id: 17,
+    date: null,
+  },
+  18: {
+    id: 18,
+    date: null,
+    image: {
+      src: 'images/open-sea-security-provider.svg',
+      width: '100%',
+    },
+  },
+  19: {
+    id: 19,
+    date: null,
+    image: {
+      src: 'images/nfts.svg',
+      width: '100%',
+    },
+  },
+  20: {
+    id: 20,
+    date: null,
+  },
+  21: {
+    id: 21,
+    date: null,
+    image: {
+      src: 'images/swaps-redesign.svg',
+      width: '100%',
+    },
+  },
+  22: {
+    id: 22,
+    date: null,
+    image: {
+      src: 'images/global-menu-block-explorer.svg',
+    },
+  },
+  ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+  23: {
+    id: 23,
+    date: null,
+    image: {
+      src: 'images/blockaid-security-provider.png',
+      width: '100%',
+    },
+  },
+  ///: END:ONLY_INCLUDE_IF
+  24: {
+    id: 24,
+    date: null,
+  },
+  // This syntax is unusual, but very helpful here.  It's equivalent to `UI_NOTIFICATIONS[NOTIFICATION_DROP_LEDGER_FIREFOX] =`
+  [NOTIFICATION_DROP_LEDGER_FIREFOX]: {
+    id: Number(NOTIFICATION_DROP_LEDGER_FIREFOX),
+    date: null,
+  },
+  [NOTIFICATION_OPEN_BETA_SNAPS]: {
+    id: Number(NOTIFICATION_OPEN_BETA_SNAPS),
+    date: null,
+    image: {
+      src: 'images/introducing-snaps.svg',
+      width: '100%',
+    },
+  },
+  [NOTIFICATION_BUY_SELL_BUTTON]: {
+    id: Number(NOTIFICATION_BUY_SELL_BUTTON),
+    date: null,
+    image: {
+      src: 'images/sell_button_whatsnew.png',
+      width: '100%',
+    },
+  },
+  [NOTIFICATION_U2F_LEDGER_LIVE]: {
+    id: Number(NOTIFICATION_U2F_LEDGER_LIVE),
+    date: null,
+  },
+  ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+  [NOTIFICATION_BLOCKAID_DEFAULT]: {
+    id: Number(NOTIFICATION_BLOCKAID_DEFAULT),
+    date: null,
+  },
+  ///: END:ONLY_INCLUDE_IF
 };
 
-export const getTranslatedUINoficiations = (t, locale) => {
-  const formattedLocale = locale.replace('_', '-');
+export const getTranslatedUINotifications = (
+  t,
+  locale,
+  ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+  theme,
+  ///: END:ONLY_INCLUDE_IF
+) => {
+  const formattedLocale = locale?.replace('_', '-');
+
   return {
     1: {
       ...UI_NOTIFICATIONS[1],
@@ -182,5 +300,199 @@ export const getTranslatedUINoficiations = (t, locale) => {
         new Date(UI_NOTIFICATIONS[12].date),
       ),
     },
+    13: {
+      ...UI_NOTIFICATIONS[13],
+      title: t('notifications13Title'),
+      description: t('notifications13Description'),
+      actionText: t('notifications13ActionText'),
+      date: new Intl.DateTimeFormat(formattedLocale).format(
+        new Date(UI_NOTIFICATIONS[13].date),
+      ),
+    },
+    14: {
+      ...UI_NOTIFICATIONS[14],
+      title: t('notifications14Title'),
+      description: t('notifications14Description'),
+      actionText: t('notifications14ActionText'),
+      date: UI_NOTIFICATIONS[14].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[14].date),
+          )
+        : '',
+    },
+    15: {
+      ...UI_NOTIFICATIONS[15],
+      title: t('notifications15Title'),
+      description: t('notifications15Description'),
+      date: UI_NOTIFICATIONS[15].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[15].date),
+          )
+        : '',
+    },
+    18: {
+      ...UI_NOTIFICATIONS[18],
+      title: t('notifications18Title'),
+      description: [
+        t('notifications18DescriptionOne'),
+        t('notifications18DescriptionTwo'),
+        t('notifications18DescriptionThree'),
+      ],
+      actionText: t('notifications18ActionText'),
+      date: UI_NOTIFICATIONS[18].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[18].date),
+          )
+        : '',
+    },
+
+    19: {
+      ...UI_NOTIFICATIONS[19],
+      title: t('notifications19Title'),
+      description: [
+        t('notifications19DescriptionOne'),
+        t('notifications19DescriptionTwo'),
+        t('notifications19DescriptionThree'),
+      ],
+      actionText: t('notifications19ActionText'),
+      date: UI_NOTIFICATIONS[19].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[19].date),
+          )
+        : '',
+    },
+    20: {
+      ...UI_NOTIFICATIONS[20],
+      title: t('notifications20Title'),
+      description: [t('notifications20Description')],
+      actionText: t('notifications20ActionText'),
+      date: UI_NOTIFICATIONS[20].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[20].date),
+          )
+        : '',
+    },
+    21: {
+      ...UI_NOTIFICATIONS[21],
+      title: t('notifications21Title'),
+      description: t('notifications21Description'),
+      actionText: t('notifications21ActionText'),
+      date: UI_NOTIFICATIONS[21].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[21].date),
+          )
+        : '',
+    },
+    22: {
+      ...UI_NOTIFICATIONS[22],
+      title: t('notifications22Title'),
+      description: t('notifications22Description'),
+      actionText: t('notifications22ActionText'),
+      date: UI_NOTIFICATIONS[22].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[22].date),
+          )
+        : '',
+    },
+    ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+    23: {
+      ...UI_NOTIFICATIONS[23],
+      title: t('notifications23Title'),
+      description: [
+        t('notifications23DescriptionOne'),
+        t('notifications23DescriptionTwo'),
+      ],
+      actionText: t('notifications23ActionText'),
+      date: UI_NOTIFICATIONS[23].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[23].date),
+          )
+        : '',
+    },
+    ///: END:ONLY_INCLUDE_IF
+    24: {
+      ...UI_NOTIFICATIONS[24],
+      title: t('notifications24Title'),
+      description: t('notifications24Description'),
+      actionText: t('notifications24ActionText'),
+      date: UI_NOTIFICATIONS[24].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[24].date),
+          )
+        : '',
+    },
+    // This syntax is unusual, but very helpful here.  It's equivalent to `unnamedObject[NOTIFICATION_DROP_LEDGER_FIREFOX] =`
+    [NOTIFICATION_DROP_LEDGER_FIREFOX]: {
+      ...UI_NOTIFICATIONS[NOTIFICATION_DROP_LEDGER_FIREFOX],
+      title: t('notificationsDropLedgerFirefoxTitle'),
+      description: [t('notificationsDropLedgerFirefoxDescription')],
+      date: UI_NOTIFICATIONS[NOTIFICATION_DROP_LEDGER_FIREFOX].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[NOTIFICATION_DROP_LEDGER_FIREFOX].date),
+          )
+        : '',
+    },
+    [NOTIFICATION_OPEN_BETA_SNAPS]: {
+      ...UI_NOTIFICATIONS[NOTIFICATION_OPEN_BETA_SNAPS],
+      title: t('notificationsOpenBetaSnapsTitle'),
+      description: [
+        t('notificationsOpenBetaSnapsDescriptionOne'),
+        t('notificationsOpenBetaSnapsDescriptionTwo'),
+        t('notificationsOpenBetaSnapsDescriptionThree'),
+      ],
+      actionText: t('notificationsOpenBetaSnapsActionText'),
+      date: UI_NOTIFICATIONS[NOTIFICATION_OPEN_BETA_SNAPS].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[NOTIFICATION_OPEN_BETA_SNAPS].date),
+          )
+        : '',
+    },
+    [NOTIFICATION_BUY_SELL_BUTTON]: {
+      ...UI_NOTIFICATIONS[NOTIFICATION_BUY_SELL_BUTTON],
+      title: t('notificationsBuySellTitle'),
+      description: t('notificationsBuySellDescription'),
+      actionText: t('notificationsBuySellActionText'),
+      date: UI_NOTIFICATIONS[NOTIFICATION_BUY_SELL_BUTTON].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[NOTIFICATION_BUY_SELL_BUTTON].date),
+          )
+        : '',
+    },
+    [NOTIFICATION_U2F_LEDGER_LIVE]: {
+      ...UI_NOTIFICATIONS[NOTIFICATION_U2F_LEDGER_LIVE],
+      title: t('notificationsU2FLedgerLiveTitle'),
+      description: [t('notificationsU2FLedgerLiveDescription')],
+      date: UI_NOTIFICATIONS[NOTIFICATION_U2F_LEDGER_LIVE].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[NOTIFICATION_U2F_LEDGER_LIVE].date),
+          )
+        : '',
+    },
+    ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+    [NOTIFICATION_BLOCKAID_DEFAULT]: {
+      ...UI_NOTIFICATIONS[NOTIFICATION_BLOCKAID_DEFAULT],
+      title: t('notificationsBlockaidDefaultTitle'),
+      description: [
+        t('notificationsBlockaidDefaultDescriptionOne'),
+        t('notificationsBlockaidDefaultDescriptionTwo'),
+      ],
+      actionText: t('notificationsBlockaidDefaultDescriptionActionText'),
+      date: UI_NOTIFICATIONS[NOTIFICATION_BLOCKAID_DEFAULT].date
+        ? new Intl.DateTimeFormat(formattedLocale).format(
+            new Date(UI_NOTIFICATIONS[NOTIFICATION_BLOCKAID_DEFAULT].date),
+          )
+        : '',
+      image:
+        theme === 'dark'
+          ? {
+              src: 'images/blockaid-whats-new-theme-dark.svg',
+              width: '100%',
+            }
+          : {
+              src: 'images/blockaid-whats-new.svg',
+              width: '100%',
+            },
+    },
+    ///: END:ONLY_INCLUDE_IF
   };
 };

@@ -1,32 +1,50 @@
 import React from 'react';
+import { act } from 'react-dom/test-utils';
 import { fireEvent, screen } from '@testing-library/react';
-import { acceptWatchAsset, rejectWatchAsset } from '../../store/actions';
+import { ApprovalType } from '@metamask/controller-utils';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import {
+  resolvePendingApproval,
+  rejectPendingApproval,
+} from '../../store/actions';
 import configureStore from '../../store/store';
 import { renderWithProvider } from '../../../test/jest/rendering';
 import ConfirmAddSuggestedToken from '.';
 
-const MOCK_SUGGESTED_ASSETS = [
-  {
-    id: 1,
-    asset: {
-      address: '0x8b175474e89094c44da98b954eedeac495271d0a',
-      symbol: 'NEW',
-      decimals: 18,
-      image: 'metamark.svg',
-      unlisted: false,
+const PENDING_APPROVALS = {
+  1: {
+    id: '1',
+    origin: 'https://test-dapp.com',
+    time: Date.now(),
+    type: ApprovalType.WatchAsset,
+    requestData: {
+      asset: {
+        address: '0x8b175474e89094c44da98b954eedeac495271d0a',
+        symbol: 'NEW',
+        decimals: 18,
+        image: 'metamark.svg',
+        unlisted: false,
+      },
     },
+    requestState: null,
   },
-  {
-    id: 2,
-    asset: {
-      address: '0xC8c77482e45F1F44dE1745F52C74426C631bDD51',
-      symbol: '0XYX',
-      decimals: 18,
-      image: '0x.svg',
-      unlisted: false,
+  2: {
+    id: '2',
+    origin: 'https://test-dapp.com',
+    time: Date.now(),
+    type: ApprovalType.WatchAsset,
+    requestData: {
+      asset: {
+        address: '0xC8c77482e45F1F44dE1745F52C74426C631bDD51',
+        symbol: '0XYX',
+        decimals: 18,
+        image: '0x.svg',
+        unlisted: false,
+      },
     },
+    requestState: null,
   },
-];
+};
 
 const MOCK_TOKEN = {
   address: '0x108cf70c7d384c552f42c07c41c0e1e46d77ea0d',
@@ -35,16 +53,40 @@ const MOCK_TOKEN = {
 };
 
 jest.mock('../../store/actions', () => ({
-  acceptWatchAsset: jest.fn().mockReturnValue({ type: 'test' }),
-  rejectWatchAsset: jest.fn().mockReturnValue({ type: 'test' }),
+  resolvePendingApproval: jest.fn().mockReturnValue({ type: 'test' }),
+  rejectPendingApproval: jest.fn().mockReturnValue({ type: 'test' }),
 }));
+
+jest.mock('../../hooks/useIsOriginalTokenSymbol', () => {
+  return {
+    useIsOriginalTokenSymbol: jest.fn(),
+  };
+});
 
 const renderComponent = (tokens = []) => {
   const store = configureStore({
     metamask: {
-      suggestedAssets: [...MOCK_SUGGESTED_ASSETS],
+      pendingApprovals: PENDING_APPROVALS,
       tokens,
-      provider: { chainId: '0x1' },
+      providerConfig: { chainId: '0x1' },
+      internalAccounts: {
+        accounts: {
+          'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3': {
+            address: '0x0dcd5d886577d5081b0c52e242ef29e70be3e7bc',
+            id: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+            metadata: {
+              name: 'Test Account',
+              keyring: {
+                type: 'HD Key Tree',
+              },
+            },
+            options: {},
+            methods: [...Object.values(EthMethod)],
+            type: EthAccountType.Eoa,
+          },
+        },
+        selectedAccount: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+      },
     },
     history: {
       mostRecentOverviewPage: '/',
@@ -57,7 +99,7 @@ describe('ConfirmAddSuggestedToken Component', () => {
   it('should render', () => {
     renderComponent();
 
-    expect(screen.getByText('Add Suggested Tokens')).toBeInTheDocument();
+    expect(screen.getByText('Add suggested tokens')).toBeInTheDocument();
     expect(
       screen.getByText('Would you like to import these tokens?'),
     ).toBeInTheDocument();
@@ -65,38 +107,62 @@ describe('ConfirmAddSuggestedToken Component', () => {
     expect(screen.getByText('Balance')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Add Token' }),
+      screen.getByRole('button', { name: 'Add token' }),
     ).toBeInTheDocument();
   });
 
   it('should render the list of suggested tokens', () => {
     renderComponent();
 
-    for (const { asset } of MOCK_SUGGESTED_ASSETS) {
+    for (const {
+      requestData: { asset },
+    } of Object.values(PENDING_APPROVALS)) {
       expect(screen.getByText(asset.symbol)).toBeInTheDocument();
     }
     expect(screen.getAllByRole('img')).toHaveLength(
-      MOCK_SUGGESTED_ASSETS.length,
+      Object.values(PENDING_APPROVALS).length,
     );
   });
 
-  it('should dispatch acceptWatchAsset when clicking the "Add Token" button', () => {
+  it('should dispatch resolvePendingApproval when clicking the "Add token" button', async () => {
     renderComponent();
-    const addTokenBtn = screen.getByRole('button', { name: 'Add Token' });
+    const addTokenBtn = screen.getByRole('button', { name: 'Add token' });
 
-    fireEvent.click(addTokenBtn);
-    expect(acceptWatchAsset).toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(addTokenBtn);
+    });
+
+    expect(resolvePendingApproval).toHaveBeenCalledTimes(
+      Object.values(PENDING_APPROVALS).length,
+    );
+
+    Object.values(PENDING_APPROVALS).forEach(({ id }) => {
+      expect(resolvePendingApproval).toHaveBeenCalledWith(id, null);
+    });
   });
 
-  it('should dispatch rejectWatchAsset when clicking the "Cancel" button', () => {
+  it('should dispatch rejectPendingApproval when clicking the "Cancel" button', async () => {
     renderComponent();
     const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
 
-    expect(rejectWatchAsset).toHaveBeenCalledTimes(0);
-    fireEvent.click(cancelBtn);
-    expect(rejectWatchAsset).toHaveBeenCalledTimes(
-      MOCK_SUGGESTED_ASSETS.length,
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+
+    expect(rejectPendingApproval).toHaveBeenCalledTimes(
+      Object.values(PENDING_APPROVALS).length,
     );
+
+    Object.values(PENDING_APPROVALS).forEach(({ id }) => {
+      expect(rejectPendingApproval).toHaveBeenCalledWith(
+        id,
+        expect.objectContaining({
+          code: 4001,
+          message: 'User rejected the request.',
+          stack: expect.any(String),
+        }),
+      );
+    });
   });
 
   describe('when the suggested token address matches an existing token address', () => {
@@ -104,7 +170,8 @@ describe('ConfirmAddSuggestedToken Component', () => {
       const mockTokens = [
         {
           ...MOCK_TOKEN,
-          address: MOCK_SUGGESTED_ASSETS[0].asset.address,
+          address:
+            Object.values(PENDING_APPROVALS)[0].requestData.asset.address,
         },
       ];
       renderComponent(mockTokens);
@@ -127,7 +194,7 @@ describe('ConfirmAddSuggestedToken Component', () => {
       const mockTokens = [
         {
           ...MOCK_TOKEN,
-          symbol: MOCK_SUGGESTED_ASSETS[0].asset.symbol,
+          symbol: Object.values(PENDING_APPROVALS)[0].requestData.asset.symbol,
         },
       ];
       renderComponent(mockTokens);

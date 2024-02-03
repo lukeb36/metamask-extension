@@ -1,13 +1,15 @@
 import React from 'react';
 
-import BuyIcon from '../icon/overview-buy-icon.component';
+import { SEVERITIES } from '../../../helpers/constants/design-system';
+import { BannerAlert } from '../../component-library';
+
+import IconTokenSearch from '../icon/icon-token-search';
 
 import README from './README.mdx';
 import Button from '.';
 
 export default {
   title: 'Components/UI/Button',
-  id: __filename,
   component: Button,
   parameters: {
     docs: {
@@ -36,9 +38,9 @@ export default {
       control: {
         type: 'select',
       },
-      options: ['BuyIcon'],
+      options: ['IconTokenSearch'],
       mapping: {
-        BuyIcon: <BuyIcon />,
+        IconTokenSearch: <IconTokenSearch />,
       },
     },
     submit: { control: 'boolean' },
@@ -56,7 +58,19 @@ export default {
 };
 
 export const DefaultStory = (args) => (
-  <Button {...args}>{args.children}</Button>
+  <>
+    <BannerAlert
+      marginBottom={4}
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="This version of Button has been deprecated in favor of the component-library version. Contribute to replacing old Button with new Button by submitting a PR to metamask-extension."
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/18896',
+      }}
+    />
+    <Button {...args}>{args.children}</Button>
+  </>
 );
 
 DefaultStory.storyName = 'Default';
@@ -132,11 +146,10 @@ TypeInline.args = {
 };
 
 export const Icon = (args) => <Button {...args}>{args.children}</Button>;
-
 Icon.args = {
   type: 'primary',
-  icon: <BuyIcon />,
-  children: 'Buy',
+  icon: <IconTokenSearch />,
+  children: 'Search',
 };
 
 export const Submit = (args) => (

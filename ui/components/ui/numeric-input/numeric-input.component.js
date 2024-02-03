@@ -1,10 +1,12 @@
 import React from 'react';
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
-import Typography from '../typography/typography';
-import { COLORS, TYPOGRAPHY } from '../../../helpers/constants/design-system';
-
-const DECIMAL_REGEX = /\.(\d*)/u;
+import {
+  TextColor,
+  TextVariant,
+} from '../../../helpers/constants/design-system';
+import { DECIMAL_REGEX } from '../../../../shared/constants/tokens';
+import { Text } from '../../component-library';
 
 export default function NumericInput({
   detailText = '',
@@ -16,6 +18,9 @@ export default function NumericInput({
   disabled = false,
   dataTestId,
   placeholder,
+  id,
+  name,
+  inputRef,
 }) {
   return (
     <div
@@ -42,15 +47,18 @@ export default function NumericInput({
         disabled={disabled}
         data-testid={dataTestId}
         placeholder={placeholder}
+        id={id}
+        name={name}
+        ref={inputRef}
       />
       {detailText && (
-        <Typography
-          color={COLORS.TEXT_ALTERNATIVE}
-          variant={TYPOGRAPHY.H7}
-          tag="span"
+        <Text
+          color={TextColor.textAlternative}
+          variant={TextVariant.bodySm}
+          as="span"
         >
           {detailText}
-        </Typography>
+        </Text>
       )}
     </div>
   );
@@ -66,4 +74,13 @@ NumericInput.propTypes = {
   disabled: PropTypes.bool,
   dataTestId: PropTypes.string,
   placeholder: PropTypes.string,
+  /**
+   * The name of the input
+   */
+  name: PropTypes.string,
+  /**
+   * The id of the input element. Should be used with htmlFor with a label element.
+   */
+  id: PropTypes.string,
+  inputRef: PropTypes.object,
 };

@@ -6,6 +6,7 @@ const {
 } = require('../../helpers/protect-intrinsics-helpers');
 const { convertToHexValue, withFixtures } = require('../helpers');
 const { PAGES } = require('../webdriver/driver');
+const FixtureBuilder = require('../fixture-builder');
 
 const isFirefox = process.env.SELENIUM_BROWSER === Browser.FIREFOX;
 
@@ -65,9 +66,9 @@ describe('lockdown', function () {
     await withFixtures(
       {
         // The fixtures used here is arbitrary. Any fixture would do.
-        fixtures: 'imported-account',
+        fixtures: new FixtureBuilder().build(),
         ganacheOptions,
-        title: this.test.title,
+        title: this.test.fullTitle(),
       },
       async ({ driver }) => {
         await driver.navigate(PAGES.HOME);

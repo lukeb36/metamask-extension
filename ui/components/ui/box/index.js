@@ -1,6 +1,7 @@
 export {
   default,
   MultipleSizes,
-  ValidBackgroundColors,
+  MultipleSizesAndAuto,
+  ValidBackgroundColor,
   ValidBorderColors,
 } from './box';

@@ -7,15 +7,22 @@ import Button from '../../../components/ui/button';
 import InfoTooltip from '../../../components/ui/info-tooltip';
 import ToggleButton from '../../../components/ui/toggle-button';
 import Box from '../../../components/ui/box';
-import Typography from '../../../components/ui/typography';
 import {
-  TYPOGRAPHY,
-  FONT_WEIGHT,
-  ALIGN_ITEMS,
-  DISPLAY,
+  TextVariant,
+  FontWeight,
+  AlignItems,
+  Display,
 } from '../../../helpers/constants/design-system';
 import { getTranslatedStxErrorMessage } from '../swaps.util';
-import { SLIPPAGE } from '../../../../shared/constants/swaps';
+import {
+  Slippage,
+  SMART_SWAPS_FAQ_AND_RISK_DISCLOSURES_URL,
+} from '../../../../shared/constants/swaps';
+import {
+  Text,
+  ButtonLink,
+  ButtonLinkSize,
+} from '../../../components/component-library';
 
 export default function SlippageButtons({
   onSelect,
@@ -31,7 +38,7 @@ export default function SlippageButtons({
   const [customValue, setCustomValue] = useState(() => {
     if (
       typeof currentSlippage === 'number' &&
-      !Object.values(SLIPPAGE).includes(currentSlippage)
+      !Object.values(Slippage).includes(currentSlippage)
     ) {
       return currentSlippage.toString();
     }
@@ -39,9 +46,9 @@ export default function SlippageButtons({
   });
   const [enteringCustomValue, setEnteringCustomValue] = useState(false);
   const [activeButtonIndex, setActiveButtonIndex] = useState(() => {
-    if (currentSlippage === SLIPPAGE.HIGH) {
+    if (currentSlippage === Slippage.high) {
       return 1; // 3% slippage.
-    } else if (currentSlippage === SLIPPAGE.DEFAULT) {
+    } else if (currentSlippage === Slippage.default) {
       return 0; // 2% slippage.
     } else if (typeof currentSlippage === 'number') {
       return 2; // Custom slippage.
@@ -49,7 +56,7 @@ export default function SlippageButtons({
     return 0;
   });
   const [open, setOpen] = useState(() => {
-    return currentSlippage !== SLIPPAGE.DEFAULT; // Only open Advanced Options by default if it's not default slippage.
+    return currentSlippage !== Slippage.default; // Only open Advanced options by default if it's not default slippage.
   });
   const [inputRef, setInputRef] = useState(null);
 
@@ -112,7 +119,7 @@ export default function SlippageButtons({
                   </div>
                   <InfoTooltip
                     position="top"
-                    contentText={t('swapAdvancedSlippageInfo')}
+                    contentText={t('swapSlippageTooltip')}
                   />
                 </div>
                 <ButtonGroup
@@ -133,20 +140,20 @@ export default function SlippageButtons({
                       setCustomValue('');
                       setEnteringCustomValue(false);
                       setActiveButtonIndex(0);
-                      onSelect(SLIPPAGE.DEFAULT);
+                      onSelect(Slippage.default);
                     }}
                   >
-                    {t('swapSlippagePercent', [SLIPPAGE.DEFAULT])}
+                    {t('swapSlippagePercent', [Slippage.default])}
                   </Button>
                   <Button
                     onClick={() => {
                       setCustomValue('');
                       setEnteringCustomValue(false);
                       setActiveButtonIndex(1);
-                      onSelect(SLIPPAGE.HIGH);
+                      onSelect(Slippage.high);
                     }}
                   >
-                    {t('swapSlippagePercent', [SLIPPAGE.HIGH])}
+                    {t('swapSlippagePercent', [Slippage.high])}
                   </Button>
                   <Button
                     className={classnames(
@@ -170,6 +177,7 @@ export default function SlippageButtons({
                         )}
                       >
                         <input
+                          data-testid="slippage-buttons__custom-slippage"
                           onChange={(event) => {
                             const { value } = event.target;
                             const isValueNumeric = !isNaN(Number(value));
@@ -200,19 +208,20 @@ export default function SlippageButtons({
               </div>
             )}
             {smartTransactionsEnabled && (
-              <Box marginTop={2} display={DISPLAY.FLEX}>
+              <Box marginTop={2} display={Display.Flex}>
                 <Box
-                  display={DISPLAY.FLEX}
-                  alignItems={ALIGN_ITEMS.CENTER}
+                  display={Display.Flex}
+                  alignItems={AlignItems.center}
                   paddingRight={3}
                 >
-                  <Typography
-                    variant={TYPOGRAPHY.H6}
-                    boxProps={{ paddingRight: 2 }}
-                    fontWeight={FONT_WEIGHT.BOLD}
+                  <Text
+                    variant={TextVariant.bodySm}
+                    as="h6"
+                    paddingRight={2}
+                    fontWeight={FontWeight.Bold}
                   >
-                    {t('smartTransaction')}
-                  </Typography>
+                    {t('smartSwaps')}
+                  </Text>
                   {currentSmartTransactionsError ? (
                     <InfoTooltip
                       position="top"
@@ -222,7 +231,20 @@ export default function SlippageButtons({
                       )}
                     />
                   ) : (
-                    <InfoTooltip position="top" contentText={t('stxTooltip')} />
+                    <InfoTooltip
+                      position="top"
+                      contentText={t('smartSwapsTooltip', [
+                        <ButtonLink
+                          key="smart-swaps-faq-and-risk-disclosures"
+                          size={ButtonLinkSize.Inherit}
+                          href={SMART_SWAPS_FAQ_AND_RISK_DISCLOSURES_URL}
+                          externalLink
+                          display={Display.Inline}
+                        >
+                          {t('faqAndRiskDisclosures')}
+                        </ButtonLink>,
+                      ])}
+                    />
                   )}
                 </Box>
                 <ToggleButton

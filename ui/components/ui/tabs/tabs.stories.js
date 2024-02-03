@@ -1,35 +1,66 @@
 import React from 'react';
-import { text } from '@storybook/addon-knobs';
+import DropdownTab from './snaps/dropdown-tab';
 import Tab from './tab/tab.component';
 import Tabs from './tabs.component';
 
 export default {
   title: 'Components/UI/Tabs',
-  id: __filename,
+
+  argTypes: {
+    tabs: {
+      control: 'object',
+      name: 'Tabs',
+    },
+    defaultActiveTabKey: {
+      control: {
+        type: 'text',
+      },
+    },
+    onTabClick: { action: 'onTabClick' },
+    onChange: { action: 'onChange' },
+  },
+  args: {
+    tabs: [
+      { name: 'Tab A', content: 'Tab A Content' },
+      { name: 'Tab B', content: 'Tab B Content' },
+      { name: 'Tab C', content: 'Tab C Content' },
+    ],
+  },
 };
 
-function renderTab(id) {
+function renderTab({ name, content }, index) {
   return (
-    <Tab name={text(`Tab ${id} Name`, `Tab ${id}`)} key={id}>
-      {text(`Tab ${id} Contents`, `Contents of Tab ${id}`)}
+    <Tab tabKey={name} key={name + index} name={name}>
+      {content}
     </Tab>
   );
 }
 
-export const TwoTabs = () => {
-  return <Tabs>{['A', 'B'].map(renderTab)}</Tabs>;
+export const DefaultStory = (args) => {
+  return (
+    <Tabs
+      defaultActiveTabKey={args.defaultActiveTabKey}
+      onTabClick={args.onTabClick}
+    >
+      {args.tabs.map((tabProps, i) => renderTab(tabProps, i, args.t))}
+    </Tabs>
+  );
 };
 
-export const ManyTabs = () => {
-  return <Tabs>{['A', 'B', 'C', 'D', 'E'].map(renderTab)}</Tabs>;
-};
+DefaultStory.storyName = 'Default';
 
-export const SingleTab = () => {
+export const DropdownStory = (args) => {
   return (
     <Tabs>
-      <Tab name={text('Name', 'Single A')}>
-        {text('Contents', 'Contents of tab')}
-      </Tab>
+      <DropdownTab
+        options={[
+          { name: 'Insight Snap', value: 'Insight Snap' },
+          { name: 'Tenderly Insight', value: 'Tenderly Insight' },
+        ]}
+        onChange={args.onChange}
+      >
+        This is a dropdown Tab
+      </DropdownTab>
     </Tabs>
   );
 };

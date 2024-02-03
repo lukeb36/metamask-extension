@@ -1,9 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
+import { Text } from '../../component-library';
+import { TextVariant } from '../../../helpers/constants/design-system';
+import Tooltip from '../tooltip/tooltip';
 
 const defaultRender = (inner) => inner;
-
 export default function IconButton({
   onClick,
   Icon,
@@ -25,10 +27,26 @@ export default function IconButton({
     >
       {renderWrapper(
         <>
-          <div className="icon-button__circle">
-            <Icon />
-          </div>
-          <span>{label}</span>
+          <div className="icon-button__circle">{Icon}</div>
+          {label.length > 10 ? (
+            <Tooltip title={label} position="bottom">
+              <Text
+                className="icon-button__label-large"
+                ellipsis
+                variant={TextVariant.bodySm}
+              >
+                {label}
+              </Text>
+            </Tooltip>
+          ) : (
+            <Text
+              className="icon-button__label"
+              ellipsis
+              variant={TextVariant.bodySm}
+            >
+              {label}
+            </Text>
+          )}
         </>,
       )}
     </button>
@@ -37,7 +55,7 @@ export default function IconButton({
 
 IconButton.propTypes = {
   onClick: PropTypes.func.isRequired,
-  Icon: PropTypes.func.isRequired,
+  Icon: PropTypes.object.isRequired,
   disabled: PropTypes.bool,
   label: PropTypes.string.isRequired,
   tooltipRender: PropTypes.func,

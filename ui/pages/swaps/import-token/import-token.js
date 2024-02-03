@@ -1,81 +1,102 @@
 import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import { I18nContext } from '../../../contexts/i18n';
-import UrlIcon from '../../../components/ui/url-icon';
-import Popover from '../../../components/ui/popover';
-import Button from '../../../components/ui/button';
-import Box from '../../../components/ui/box';
-import Typography from '../../../components/ui/typography';
-import ActionableMessage from '../../../components/ui/actionable-message/actionable-message';
 import {
-  TYPOGRAPHY,
-  FONT_WEIGHT,
-  ALIGN_ITEMS,
-  DISPLAY,
+  TextVariant,
+  AlignItems,
+  Display,
+  Severity,
+  FlexDirection,
+  BlockSize,
 } from '../../../helpers/constants/design-system';
+
+import {
+  Text,
+  Box,
+  BannerAlert,
+  Button,
+  BUTTON_VARIANT,
+  Modal,
+  AvatarToken,
+  AvatarTokenSize,
+  BUTTON_SIZES,
+  ModalOverlay,
+} from '../../../components/component-library';
+import { FormTextField } from '../../../components/component-library/form-text-field/deprecated';
+import { ModalContent } from '../../../components/component-library/modal-content/deprecated';
+import { ModalHeader } from '../../../components/component-library/modal-header/deprecated';
 
 export default function ImportToken({
   onImportTokenCloseClick,
   onImportTokenClick,
   setIsImportTokenModalOpen,
   tokenForImport,
+  isOpen,
 }) {
   const t = useContext(I18nContext);
-  const ImportTokenModalFooter = (
-    <>
-      <Button
-        type="secondary"
-        className="page-container__footer-button"
-        onClick={onImportTokenCloseClick}
-      >
-        {t('cancel')}
-      </Button>
-      <Button
-        type="primary"
-        className="page-container__footer-button"
-        onClick={onImportTokenClick}
-      >
-        {t('import')}
-      </Button>
-    </>
-  );
-
   return (
-    <Popover
-      title={t('importTokenQuestion')}
-      onClose={() => setIsImportTokenModalOpen(false)}
-      footer={ImportTokenModalFooter}
-    >
-      <Box
-        padding={[0, 6, 4, 6]}
-        alignItems={ALIGN_ITEMS.CENTER}
-        display={DISPLAY.FLEX}
-        className="import-token"
+    <Modal isOpen={isOpen} onClose={() => setIsImportTokenModalOpen(false)}>
+      <ModalOverlay />
+      <ModalContent
+        modalDialogProps={{
+          display: Display.Flex,
+          flexDirection: FlexDirection.Column,
+          alignItems: AlignItems.center,
+          gap: 4,
+        }}
       >
-        <ActionableMessage type="danger" message={t('importTokenWarning')} />
-        <UrlIcon
-          url={tokenForImport.iconUrl}
-          className="import-token__token-icon"
-          fallbackClassName="import-token__token-icon"
-          name={tokenForImport.symbol}
+        <ModalHeader
+          onClose={() => setIsImportTokenModalOpen(false)}
+          width={BlockSize.Full}
+        >
+          {t('importTokenQuestion')}
+        </ModalHeader>
+        <BannerAlert
+          severity={Severity.Danger}
+          description={t('importTokenWarning')}
         />
-        <Typography
-          ariant={TYPOGRAPHY.H4}
-          fontWeight={FONT_WEIGHT.BOLD}
-          boxProps={{ marginTop: 2, marginBottom: 3 }}
+        <AvatarToken
+          src={tokenForImport.iconUrl}
+          name={tokenForImport.symbol}
+          size={AvatarTokenSize.Xl}
+        />
+        <Text variant={TextVariant.headingSm} as="h4">
+          {tokenForImport.name || ''}
+        </Text>
+        <FormTextField
+          label={t('contract')}
+          id="import-tokens-input"
+          inputProps={{ variant: TextVariant.bodySm }}
+          readOnly
+          value={tokenForImport.address || ''}
+          width={BlockSize.Full}
+        />
+        <Box
+          display={Display.Flex}
+          flexDirection={FlexDirection.Row}
+          gap={4}
+          width={BlockSize.Full}
         >
-          {tokenForImport.name}
-        </Typography>
-        <Typography variant={TYPOGRAPHY.H6}>{t('contract')}:</Typography>
-        <Typography
-          className="import-token__contract-address"
-          variant={TYPOGRAPHY.H7}
-          boxProps={{ marginBottom: 6 }}
-        >
-          {tokenForImport.address}
-        </Typography>
-      </Box>
-    </Popover>
+          <Button
+            variant={BUTTON_VARIANT.SECONDARY}
+            block
+            size={BUTTON_SIZES.LG}
+            onClick={onImportTokenCloseClick}
+          >
+            {t('cancel')}
+          </Button>
+          <Button
+            variant={BUTTON_VARIANT.PRIMARY}
+            block
+            size={BUTTON_SIZES.LG}
+            onClick={onImportTokenClick}
+            data-testid="import-tokens-import-button"
+          >
+            {t('import')}
+          </Button>
+        </Box>
+      </ModalContent>
+    </Modal>
   );
 }
 
@@ -84,4 +105,5 @@ ImportToken.propTypes = {
   onImportTokenClick: PropTypes.func,
   setIsImportTokenModalOpen: PropTypes.func,
   tokenForImport: PropTypes.object,
+  isOpen: PropTypes.bool,
 };

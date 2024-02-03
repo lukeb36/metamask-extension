@@ -4,6 +4,7 @@ exports[`DropdownSearchList renders the component with initial props 1`] = `
 <div>
   <div
     class="dropdown-search-list"
+    data-testid="dropdown-search-list"
     tabindex="0"
   >
     <div
@@ -12,11 +13,15 @@ exports[`DropdownSearchList renders the component with initial props 1`] = `
       <div
         class="dropdown-search-list__selector-closed"
       >
-        <img
-          alt="symbol"
-          class="url-icon dropdown-search-list__selector-closed-icon"
-          src="iconUrl"
-        />
+        <div
+          class=""
+        >
+          <img
+            alt="symbol"
+            class="url-icon dropdown-search-list__selector-closed-icon"
+            src="iconUrl"
+          />
+        </div>
         <div
           class="dropdown-search-list__labels"
         >
@@ -31,8 +36,9 @@ exports[`DropdownSearchList renders the component with initial props 1`] = `
           </div>
         </div>
       </div>
-      <i
-        class="fa fa-caret-down fa-lg dropdown-search-list__caret"
+      <span
+        class="mm-box mm-icon mm-icon--size-xs mm-box--margin-right-3 mm-box--display-inline-block mm-box--color-inherit"
+        style="mask-image: url('./images/icons/arrow-down.svg');"
       />
     </div>
   </div>

@@ -4,48 +4,38 @@ import PropTypes from 'prop-types';
 import { useI18nContext } from '../../../../hooks/useI18nContext';
 import { useCopyToClipboard } from '../../../../hooks/useCopyToClipboard';
 
-import Box from '../../../ui/box';
-import Button from '../../../ui/button';
-import Typography from '../../../ui/typography';
 import Tooltip from '../../../ui/tooltip';
 
 import {
-  COLORS,
-  DISPLAY,
-  TYPOGRAPHY,
+  Display,
+  TextColor,
 } from '../../../../helpers/constants/design-system';
 
 import { shortenAddress } from '../../../../helpers/utils/util';
+import { Text, Box, ButtonLink, IconName } from '../../../component-library';
 
 const DetectedTokenAddress = ({ tokenAddress }) => {
   const t = useI18nContext();
   const [copied, handleCopy] = useCopyToClipboard();
 
   return (
-    <Box display={DISPLAY.INLINE_FLEX} className="detected-token-address">
-      <Typography variant={TYPOGRAPHY.H7} color={COLORS.TEXT_DEFAULT}>
-        {`${t('tokenAddress')}:`}
-      </Typography>
-      <Typography
-        variant={TYPOGRAPHY.H7}
-        color={COLORS.PRIMARY_DEFAULT}
-        margin={[1, 2]}
-      >
-        {shortenAddress(tokenAddress)}
-      </Typography>
+    <Box display={Display.InlineFlex} className="detected-token-address">
+      <Text color={TextColor.textDefault}>{`${t('tokenAddress')}:`}</Text>
       <Tooltip
         position="bottom"
         title={copied ? t('copiedExclamation') : t('copyToClipboard')}
       >
-        <Button
-          type="link"
+        <ButtonLink
           className="detected-token-address__copy-link"
           onClick={() => {
             handleCopy(tokenAddress);
           }}
+          endIconName={IconName.Copy}
+          marginLeft={2}
+          marginRight={2}
         >
-          <i className="fa fa-copy" />
-        </Button>
+          {shortenAddress(tokenAddress)}
+        </ButtonLink>
       </Tooltip>
     </Box>
   );

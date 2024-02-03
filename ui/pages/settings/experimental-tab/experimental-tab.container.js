@@ -2,44 +2,62 @@ import { compose } from 'redux';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router-dom';
 import {
-  setUseTokenDetection,
-  setUseCollectibleDetection,
-  setOpenSeaEnabled,
-  setEIP1559V2Enabled,
-  setTheme,
+  setTransactionSecurityCheckEnabled,
+  ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+  setSecurityAlertsEnabled,
+  ///: END:ONLY_INCLUDE_IF
+  ///: BEGIN:ONLY_INCLUDE_IF(keyring-snaps)
+  setAddSnapAccountEnabled,
+  ///: END:ONLY_INCLUDE_IF
+  setUseRequestQueue,
+  setPetnamesEnabled,
 } from '../../../store/actions';
 import {
-  getUseTokenDetection,
-  getUseCollectibleDetection,
-  getOpenSeaEnabled,
-  getEIP1559V2Enabled,
-  getTheme,
+  getIsTransactionSecurityCheckEnabled,
+  ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+  getIsSecurityAlertsEnabled,
+  ///: END:ONLY_INCLUDE_IF
+  ///: BEGIN:ONLY_INCLUDE_IF(keyring-snaps)
+  getIsAddSnapAccountEnabled,
+  ///: END:ONLY_INCLUDE_IF
+  getUseRequestQueue,
+  getPetnamesEnabled,
 } from '../../../selectors';
 import ExperimentalTab from './experimental-tab.component';
 
 const mapStateToProps = (state) => {
+  const petnamesEnabled = getPetnamesEnabled(state);
   return {
-    useTokenDetection: getUseTokenDetection(
-      state,
-    ) /** TODO: Remove during TOKEN_DETECTION_V2 feature flag clean up */,
-    useCollectibleDetection: getUseCollectibleDetection(state),
-    openSeaEnabled: getOpenSeaEnabled(state),
-    eip1559V2Enabled: getEIP1559V2Enabled(state),
-    theme: getTheme(state),
+    transactionSecurityCheckEnabled:
+      getIsTransactionSecurityCheckEnabled(state),
+
+    ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+    securityAlertsEnabled: getIsSecurityAlertsEnabled(state),
+    ///: END:ONLY_INCLUDE_IF
+
+    ///: BEGIN:ONLY_INCLUDE_IF(keyring-snaps)
+    addSnapAccountEnabled: getIsAddSnapAccountEnabled(state),
+    ///: END:ONLY_INCLUDE_IF
+    useRequestQueue: getUseRequestQueue(state),
+    petnamesEnabled,
   };
 };
 
 const mapDispatchToProps = (dispatch) => {
   return {
-    setUseTokenDetection: (val) =>
-      dispatch(
-        setUseTokenDetection(val),
-      ) /** TODO: Remove during TOKEN_DETECTION_V2 feature flag clean up */,
-    setUseCollectibleDetection: (val) =>
-      dispatch(setUseCollectibleDetection(val)),
-    setOpenSeaEnabled: (val) => dispatch(setOpenSeaEnabled(val)),
-    setEIP1559V2Enabled: (val) => dispatch(setEIP1559V2Enabled(val)),
-    setTheme: (val) => dispatch(setTheme(val)),
+    setTransactionSecurityCheckEnabled: (val) =>
+      dispatch(setTransactionSecurityCheckEnabled(val)),
+    ///: BEGIN:ONLY_INCLUDE_IF(blockaid)
+    setSecurityAlertsEnabled: (val) => setSecurityAlertsEnabled(val),
+    ///: END:ONLY_INCLUDE_IF
+
+    ///: BEGIN:ONLY_INCLUDE_IF(keyring-snaps)
+    setAddSnapAccountEnabled: (val) => setAddSnapAccountEnabled(val),
+    ///: END:ONLY_INCLUDE_IF
+    setUseRequestQueue: (val) => dispatch(setUseRequestQueue(val)),
+    setPetnamesEnabled: (value) => {
+      return dispatch(setPetnamesEnabled(value));
+    },
   };
 };
 

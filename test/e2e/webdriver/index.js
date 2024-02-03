@@ -1,17 +1,17 @@
 const { Browser } = require('selenium-webdriver');
-const Driver = require('./driver');
+const { Driver } = require('./driver');
 const ChromeDriver = require('./chrome');
 const FirefoxDriver = require('./firefox');
 
-async function buildWebDriver({ responsive, port, type } = {}) {
+async function buildWebDriver({ openDevToolsForTabs, port, timeOut } = {}) {
   const browser = process.env.SELENIUM_BROWSER;
 
   const {
     driver: seleniumDriver,
     extensionId,
     extensionUrl,
-  } = await buildBrowserWebDriver(browser, { responsive, port, type });
-  const driver = new Driver(seleniumDriver, browser, extensionUrl);
+  } = await buildBrowserWebDriver(browser, { openDevToolsForTabs, port });
+  const driver = new Driver(seleniumDriver, browser, extensionUrl, timeOut);
 
   return {
     driver,

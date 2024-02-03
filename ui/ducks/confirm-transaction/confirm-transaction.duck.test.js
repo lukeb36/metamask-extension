@@ -1,11 +1,9 @@
 import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
 import sinon from 'sinon';
-import {
-  ROPSTEN_CHAIN_ID,
-  ROPSTEN_NETWORK_ID,
-} from '../../../shared/constants/network';
-import { TRANSACTION_STATUSES } from '../../../shared/constants/transaction';
+import { NetworkStatus } from '@metamask/network-controller';
+import { NetworkType } from '@metamask/controller-utils';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 import ConfirmTransactionReducer, * as actions from './confirm-transaction.duck';
 
@@ -278,9 +276,9 @@ describe('Confirm Transaction Duck', () => {
         history: [],
         id: 2603411941761054,
         loadingDefaults: false,
-        metamaskNetworkId: ROPSTEN_NETWORK_ID,
+        chainId: '0x5',
         origin: 'faucet.metamask.io',
-        status: TRANSACTION_STATUSES.UNAPPROVED,
+        status: TransactionStatus.unapproved,
         time: 1530838113716,
         txParams: {
           from: '0xc5ae6383e126f901dcb06131d97a88745bfa88d6',
@@ -292,8 +290,15 @@ describe('Confirm Transaction Duck', () => {
       };
       const mockState = {
         metamask: {
-          conversionRate: 468.58,
           currentCurrency: 'usd',
+          currencyRates: {
+            ETH: {
+              conversionRate: 468.58,
+            },
+          },
+          providerConfig: {
+            ticker: 'ETH',
+          },
         },
         confirmTransaction: {
           ethTransactionAmount: '1',
@@ -342,20 +347,31 @@ describe('Confirm Transaction Duck', () => {
     it('updates confirmTransaction transaction', () => {
       const mockState = {
         metamask: {
-          conversionRate: 468.58,
           currentCurrency: 'usd',
-          network: ROPSTEN_NETWORK_ID,
-          provider: {
-            chainId: ROPSTEN_CHAIN_ID,
+          currencyRates: {
+            ETH: {
+              conversionRate: 468.58,
+            },
           },
-          unapprovedTxs: {
-            2603411941761054: {
+          selectedNetworkClientId: NetworkType.goerli,
+          networksMetadata: {
+            [NetworkType.goerli]: {
+              EIPS: {},
+              status: NetworkStatus.Available,
+            },
+          },
+          providerConfig: {
+            chainId: '0x5',
+            ticker: 'ETH',
+          },
+          transactions: [
+            {
               history: [],
               id: 2603411941761054,
               loadingDefaults: false,
-              metamaskNetworkId: ROPSTEN_NETWORK_ID,
+              chainId: '0x5',
               origin: 'faucet.metamask.io',
-              status: TRANSACTION_STATUSES.UNAPPROVED,
+              status: TransactionStatus.unapproved,
               time: 1530838113716,
               txParams: {
                 from: '0xc5ae6383e126f901dcb06131d97a88745bfa88d6',
@@ -365,11 +381,10 @@ describe('Confirm Transaction Duck', () => {
                 value: '0xde0b6b3a7640000',
               },
             },
-          },
+          ],
         },
         confirmTransaction: {},
       };
-
       const middlewares = [thunk];
       const mockStore = configureMockStore(middlewares);
       const store = mockStore(mockState);

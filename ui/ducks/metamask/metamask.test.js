@@ -1,4 +1,6 @@
-import { TRANSACTION_STATUSES } from '../../../shared/constants/transaction';
+import { NetworkType } from '@metamask/controller-utils';
+import { NetworkStatus } from '@metamask/network-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import * as actionConstants from '../../store/actionConstants';
 import reduceMetamask, {
   getBlockGasLimit,
@@ -7,7 +9,6 @@ import reduceMetamask, {
   getNativeCurrency,
   getSendHexDataFeatureFlagState,
   getSendToAccounts,
-  getUnapprovedTxs,
   isNotEIP1559Network,
 } from './metamask';
 
@@ -36,14 +37,27 @@ describe('MetaMask Reducers', () => {
             name: 'Send Account 4',
           },
         },
-        cachedBalances: {},
         currentBlockGasLimit: '0x4c1878',
-        conversionRate: 1200.88200327,
-        nativeCurrency: 'ETH',
-        network: '3',
-        provider: {
+        currentBlockGasLimitByChainId: {
+          '0x5': '0x4c1878',
+        },
+        useCurrencyRateCheck: true,
+        currencyRates: {
+          TestETH: {
+            conversionRate: 1200.88200327,
+          },
+        },
+        selectedNetworkClientId: NetworkType.goerli,
+        networksMetadata: {
+          [NetworkType.goerli]: {
+            EIPS: {},
+            status: NetworkStatus.Available,
+          },
+        },
+        providerConfig: {
           type: 'testnet',
-          chainId: '0x3',
+          chainId: '0x5',
+          ticker: 'TestETH',
         },
         accounts: {
           '0xfdea65c8e26263f6d9a1b5de9555d2931a33b825': {
@@ -71,28 +85,56 @@ describe('MetaMask Reducers', () => {
             address: '0xd85a4b6a394794842887b8284293d69163007bbb',
           },
         },
-        addressBook: {
-          '0x3': {
-            '0x06195827297c7a80a443b6894d3bdb8824b43896': {
-              address: '0x06195827297c7a80a443b6894d3bdb8824b43896',
-              name: 'Address Book Account 1',
-              chainId: '0x3',
+        accountsByChainId: {
+          '0x5': {
+            '0xfdea65c8e26263f6d9a1b5de9555d2931a33b825': {
+              code: '0x',
+              balance: '0x47c9d71831c76efe',
+              nonce: '0x1b',
+              address: '0xfdea65c8e26263f6d9a1b5de9555d2931a33b825',
+            },
+            '0xc5b8dbac4c1d3f152cdeb400e2313f309c410acb': {
+              code: '0x',
+              balance: '0x37452b1315889f80',
+              nonce: '0xa',
+              address: '0xc5b8dbac4c1d3f152cdeb400e2313f309c410acb',
+            },
+            '0x2f8d4a878cfa04a6e60d46362f5644deab66572d': {
+              code: '0x',
+              balance: '0x30c9d71831c76efe',
+              nonce: '0x1c',
+              address: '0x2f8d4a878cfa04a6e60d46362f5644deab66572d',
+            },
+            '0xd85a4b6a394794842887b8284293d69163007bbb': {
+              code: '0x',
+              balance: '0x0',
+              nonce: '0x0',
+              address: '0xd85a4b6a394794842887b8284293d69163007bbb',
             },
           },
         },
-        unapprovedTxs: {
-          4768706228115573: {
+        addressBook: {
+          '0x5': {
+            '0x06195827297c7a80a443b6894d3bdb8824b43896': {
+              address: '0x06195827297c7a80a443b6894d3bdb8824b43896',
+              name: 'Address Book Account 1',
+              chainId: '0x5',
+            },
+          },
+        },
+        transactions: [
+          {
             id: 4768706228115573,
             time: 1487363153561,
-            status: TRANSACTION_STATUSES.UNAPPROVED,
+            status: TransactionStatus.unapproved,
             gasMultiplier: 1,
-            metamaskNetworkId: '3',
+            chainId: '0x5',
             txParams: {
               from: '0xc5b8dbac4c1d3f152cdeb400e2313f309c410acb',
               to: '0x18a3462427bcc9133bb46e88bcbe39cd7ef0e761',
               value: '0xde0b6b3a7640000',
               metamaskId: 4768706228115573,
-              metamaskNetworkId: '3',
+              chainId: '0x5',
               gas: '0x5209',
             },
             txFee: '17e0186e60800',
@@ -100,10 +142,7 @@ describe('MetaMask Reducers', () => {
             maxCost: 'de234b52e4a0800',
             gasPrice: '4a817c800',
           },
-        },
-        networkDetails: {
-          EIPS: { 1559: true },
-        },
+        ],
       },
       {},
     ),
@@ -124,42 +163,6 @@ describe('MetaMask Reducers', () => {
     });
 
     expect(lockMetaMask.isUnlocked).toStrictEqual(false);
-  });
-
-  it('sets rpc target', () => {
-    const state = reduceMetamask(
-      {},
-      {
-        type: actionConstants.SET_RPC_TARGET,
-        value: 'https://custom.rpc',
-      },
-    );
-
-    expect(state.provider.rpcUrl).toStrictEqual('https://custom.rpc');
-  });
-
-  it('sets provider type', () => {
-    const state = reduceMetamask(
-      {},
-      {
-        type: actionConstants.SET_PROVIDER_TYPE,
-        value: 'provider type',
-      },
-    );
-
-    expect(state.provider.type).toStrictEqual('provider type');
-  });
-
-  it('shows account detail', () => {
-    const state = reduceMetamask(
-      {},
-      {
-        type: actionConstants.SHOW_ACCOUNT_DETAIL,
-      },
-    );
-
-    expect(state.isUnlocked).toStrictEqual(true);
-    expect(state.isInitialized).toStrictEqual(true);
   });
 
   it('sets account label', () => {
@@ -190,9 +193,20 @@ describe('MetaMask Reducers', () => {
     expect(state.isAccountMenuOpen).toStrictEqual(true);
   });
 
+  it('toggles network menu', () => {
+    const state = reduceMetamask(
+      {},
+      {
+        type: actionConstants.TOGGLE_NETWORK_MENU,
+      },
+    );
+
+    expect(state.isNetworkMenuOpen).toStrictEqual(true);
+  });
+
   it('updates value of tx by id', () => {
     const oldState = {
-      currentNetworkTxList: [
+      transactions: [
         {
           id: 1,
           txParams: 'foo',
@@ -206,33 +220,7 @@ describe('MetaMask Reducers', () => {
       value: 'bar',
     });
 
-    expect(state.currentNetworkTxList[0].txParams).toStrictEqual('bar');
-  });
-
-  it('sets blockies', () => {
-    const state = reduceMetamask(
-      {},
-      {
-        type: actionConstants.SET_USE_BLOCKIE,
-        value: true,
-      },
-    );
-
-    expect(state.useBlockie).toStrictEqual(true);
-  });
-
-  it('updates an arbitrary feature flag', () => {
-    const state = reduceMetamask(
-      {},
-      {
-        type: actionConstants.UPDATE_FEATURE_FLAGS,
-        value: {
-          foo: true,
-        },
-      },
-    );
-
-    expect(state.featureFlags.foo).toStrictEqual(true);
+    expect(state.transactions[0].txParams).toStrictEqual('bar');
   });
 
   it('close welcome screen', () => {
@@ -244,18 +232,6 @@ describe('MetaMask Reducers', () => {
     );
 
     expect(state.welcomeScreenSeen).toStrictEqual(true);
-  });
-
-  it('sets current locale', () => {
-    const state = reduceMetamask(
-      {},
-      {
-        type: actionConstants.SET_CURRENT_LOCALE,
-        value: { locale: 'ge' },
-      },
-    );
-
-    expect(state.currentLocale).toStrictEqual('ge');
   });
 
   it('sets pending tokens', () => {
@@ -294,6 +270,17 @@ describe('MetaMask Reducers', () => {
     expect(state.pendingTokens).toStrictEqual({});
   });
 
+  it('disables desktop', () => {
+    const enabledMetaMaskState = {
+      desktopEnabled: true,
+    };
+    const enabledDesktopMetaMask = reduceMetamask(enabledMetaMaskState, {
+      type: actionConstants.FORCE_DISABLE_DESKTOP,
+    });
+
+    expect(enabledDesktopMetaMask.desktopEnabled).toStrictEqual(false);
+  });
+
   describe('metamask state selectors', () => {
     describe('getBlockGasLimit', () => {
       it('should return the current block gas limit', () => {
@@ -308,8 +295,20 @@ describe('MetaMask Reducers', () => {
     });
 
     describe('getNativeCurrency()', () => {
-      it('should return the ticker symbol of the selected network', () => {
-        expect(getNativeCurrency(mockState)).toStrictEqual('ETH');
+      it('should return nativeCurrency when useCurrencyRateCheck is true', () => {
+        expect(getNativeCurrency(mockState)).toStrictEqual('TestETH');
+      });
+
+      it('should return the ticker symbol of the selected network when useCurrencyRateCheck is false', () => {
+        expect(
+          getNativeCurrency({
+            ...mockState,
+            metamask: {
+              ...mockState.metamask,
+              useCurrencyRateCheck: false,
+            },
+          }),
+        ).toStrictEqual('TestETH');
       });
     });
 
@@ -353,33 +352,9 @@ describe('MetaMask Reducers', () => {
           {
             address: '0x06195827297c7a80a443b6894d3bdb8824b43896',
             name: 'Address Book Account 1',
-            chainId: '0x3',
+            chainId: '0x5',
           },
         ]);
-      });
-    });
-
-    it('should return the unapproved txs', () => {
-      expect(getUnapprovedTxs(mockState)).toStrictEqual({
-        4768706228115573: {
-          id: 4768706228115573,
-          time: 1487363153561,
-          status: TRANSACTION_STATUSES.UNAPPROVED,
-          gasMultiplier: 1,
-          metamaskNetworkId: '3',
-          txParams: {
-            from: '0xc5b8dbac4c1d3f152cdeb400e2313f309c410acb',
-            to: '0x18a3462427bcc9133bb46e88bcbe39cd7ef0e761',
-            value: '0xde0b6b3a7640000',
-            metamaskId: 4768706228115573,
-            metamaskNetworkId: '3',
-            gas: '0x5209',
-          },
-          txFee: '17e0186e60800',
-          txValue: 'de0b6b3a7640000',
-          maxCost: 'de234b52e4a0800',
-          gasPrice: '4a817c800',
-        },
       });
     });
   });
@@ -391,15 +366,21 @@ describe('MetaMask Reducers', () => {
           ...mockState,
           metamask: {
             ...mockState.metamask,
-            networkDetails: {
-              EIPS: { 1559: false },
+            selectedNetworkClientId: NetworkType.mainnet,
+            networksMetadata: {
+              [NetworkType.mainnet]: {
+                EIPS: {
+                  1559: false,
+                },
+                status: 'available',
+              },
             },
           },
         }),
       ).toStrictEqual(true);
     });
 
-    it('should return false if networkDetails.EIPS.1559 is not false', () => {
+    it('should return false if networksMetadata[selectedNetworkClientId].EIPS.1559 is not false', () => {
       expect(isNotEIP1559Network(mockState)).toStrictEqual(false);
 
       expect(
@@ -407,8 +388,12 @@ describe('MetaMask Reducers', () => {
           ...mockState,
           metamask: {
             ...mockState.metamask,
-            networkDetails: {
-              EIPS: { 1559: undefined },
+            selectedNetworkClientId: NetworkType.mainnet,
+            networksMetadata: {
+              [NetworkType.mainnet]: {
+                EIPS: { 1559: true },
+                status: 'available',
+              },
             },
           },
         }),

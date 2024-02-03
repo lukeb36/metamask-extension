@@ -2,18 +2,23 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import Modal from '../../modal';
 import TextField from '../../../ui/text-field';
-import Button from '../../../ui/button';
-import Typography from '../../../ui/typography';
 import {
-  TYPOGRAPHY,
-  FONT_WEIGHT,
-  ALIGN_ITEMS,
-  BLOCK_SIZES,
-  DISPLAY,
+  TextVariant,
+  AlignItems,
+  BlockSize,
+  Display,
 } from '../../../../helpers/constants/design-system';
-import Box from '../../../ui/box';
 import withModalProps from '../../../../helpers/higher-order-components/with-modal-props';
 import { useI18nContext } from '../../../../hooks/useI18nContext';
+import ZENDESK_URLS from '../../../../helpers/constants/zendesk-url';
+import {
+  Box,
+  ButtonIcon,
+  ButtonIconSize,
+  ButtonLink,
+  IconName,
+  Text,
+} from '../../../component-library';
 
 const CustomizeNonce = ({
   hideModal,
@@ -44,61 +49,63 @@ const CustomizeNonce = ({
     >
       <div className="customize-nonce-modal">
         <div className="customize-nonce-modal__main-header">
-          <Typography
+          <Text
             className="customize-nonce-modal__main-title"
-            variant={TYPOGRAPHY.H4}
-            fontWeight={FONT_WEIGHT.BOLD}
+            variant={TextVariant.headingSm}
+            as="h4"
           >
             {t('editNonceField')}
-          </Typography>
-          <button
-            className="fas fa-times customize-nonce-modal__close"
-            title={t('close')}
+          </Text>
+          <ButtonIcon
+            iconName={IconName.Close}
+            className="customize-nonce-modal__close"
+            size={ButtonIconSize.Sm}
+            ariaLabel={t('close')}
             onClick={hideModal}
           />
         </div>
         <Box
           marginTop={2}
-          display={DISPLAY.INLINE_FLEX}
-          alignItems={ALIGN_ITEMS.CENTER}
+          display={Display.InlineFlex}
+          alignItems={AlignItems.center}
         >
-          <Typography variant={TYPOGRAPHY.H6} fontWeight={FONT_WEIGHT.NORMAL}>
+          <Text variant={TextVariant.bodyMd} as="h6">
             {t('editNonceMessage')}
-            <Button
-              type="link"
+            <ButtonLink
               className="customize-nonce-modal__link"
               rel="noopener noreferrer"
               target="_blank"
-              href="https://metamask.zendesk.com/hc/en-us/articles/360015489251"
+              href={ZENDESK_URLS.CUSTOMIZE_NONCE}
             >
-              {t('learnMore')}
-            </Button>
-          </Typography>
+              {t('learnMoreUpperCase')}
+            </ButtonLink>
+          </Text>
         </Box>
-        <Box marginTop={3}>
-          <Box alignItems={ALIGN_ITEMS.CENTER} display={DISPLAY.FLEX}>
-            <Typography
-              variant={TYPOGRAPHY.H6}
-              fontWeight={FONT_WEIGHT.BOLD}
-              boxProps={{ width: BLOCK_SIZES.FIVE_SIXTHS }}
+        <Box marginTop={4}>
+          <Box alignItems={AlignItems.center} display={Display.Flex}>
+            <Text
+              variant={TextVariant.bodyMdBold}
+              as="h6"
+              width={BlockSize.FiveSixths}
             >
               {t('editNonceField')}
-            </Typography>
-            <Box width={BLOCK_SIZES.ONE_SIXTH}>
-              <Button
-                type="link"
+            </Text>
+            <Box width={BlockSize.OneSixth}>
+              <ButtonLink
                 className="customize-nonce-modal__reset"
+                data-testid="customize-nonce-reset"
                 onClick={() => {
                   setCustomNonce(nextNonce);
                 }}
               >
                 {t('reset')}
-              </Button>
+              </ButtonLink>
             </Box>
           </Box>
           <div className="customize-nonce-modal__input">
             <TextField
               type="number"
+              data-testid="custom-nonce-input"
               min="0"
               placeholder={
                 customNonceValue ||

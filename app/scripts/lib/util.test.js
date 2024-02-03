@@ -1,15 +1,28 @@
-import { isPrefixedFormattedHexString } from '../../../shared/modules/network.utils';
 import {
-  ENVIRONMENT_TYPE_POPUP,
-  ENVIRONMENT_TYPE_NOTIFICATION,
-  ENVIRONMENT_TYPE_FULLSCREEN,
+  TransactionEnvelopeType,
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import {
   ENVIRONMENT_TYPE_BACKGROUND,
-  PLATFORM_FIREFOX,
-  PLATFORM_OPERA,
+  ENVIRONMENT_TYPE_FULLSCREEN,
+  ENVIRONMENT_TYPE_NOTIFICATION,
+  ENVIRONMENT_TYPE_POPUP,
   PLATFORM_CHROME,
   PLATFORM_EDGE,
+  PLATFORM_FIREFOX,
+  PLATFORM_OPERA,
 } from '../../../shared/constants/app';
-import { getEnvironmentType, getPlatform } from './util';
+import { isPrefixedFormattedHexString } from '../../../shared/modules/network.utils';
+import {
+  addUrlProtocolPrefix,
+  deferredPromise,
+  formatTxMetaForRpcResult,
+  getEnvironmentType,
+  getPlatform,
+  getValidUrl,
+  isWebUrl,
+} from './util';
 
 describe('app utils', () => {
   describe('getEnvironmentType', () => {
@@ -60,6 +73,39 @@ describe('app utils', () => {
         'http://extension-id/popup.html?param=foo#hash',
       );
       expect(environmentType).toStrictEqual(ENVIRONMENT_TYPE_POPUP);
+    });
+  });
+
+  describe('URL utils', () => {
+    it('should test addUrlProtocolPrefix', () => {
+      expect(addUrlProtocolPrefix('http://example.com')).toStrictEqual(
+        'http://example.com',
+      );
+      expect(addUrlProtocolPrefix('https://example.com')).toStrictEqual(
+        'https://example.com',
+      );
+      expect(addUrlProtocolPrefix('example.com')).toStrictEqual(
+        'https://example.com',
+      );
+      expect(addUrlProtocolPrefix('exa mple.com')).toStrictEqual(null);
+    });
+
+    it('should test isWebUrl', () => {
+      expect(isWebUrl('http://example.com')).toStrictEqual(true);
+      expect(isWebUrl('https://example.com')).toStrictEqual(true);
+      expect(isWebUrl('https://exa mple.com')).toStrictEqual(false);
+      expect(isWebUrl('')).toStrictEqual(false);
+    });
+
+    it('should test getValidUrl', () => {
+      expect(getValidUrl('http://example.com').toString()).toStrictEqual(
+        'http://example.com/',
+      );
+      expect(getValidUrl('https://example.com').toString()).toStrictEqual(
+        'https://example.com/',
+      );
+      expect(getValidUrl('https://exa%20mple.com')).toStrictEqual(null);
+      expect(getValidUrl('')).toStrictEqual(null);
     });
   });
 
@@ -152,6 +198,149 @@ describe('app utils', () => {
     it('should detect Chrome', () => {
       setBrowserSpecificWindow('chrome');
       expect(getPlatform()).toStrictEqual(PLATFORM_CHROME);
+    });
+  });
+
+  describe('deferredPromise', () => {
+    it('should allow rejecting a deferred Promise', async () => {
+      const { promise, reject } = deferredPromise();
+
+      reject(new Error('test'));
+
+      await expect(promise).rejects.toThrow('test');
+    });
+
+    it('should allow resolving a deferred Promise', async () => {
+      const { promise, resolve } = deferredPromise();
+
+      resolve('test');
+
+      await expect(promise).resolves.toBe('test');
+    });
+
+    it('should still be rejected after reject is called twice', async () => {
+      const { promise, reject } = deferredPromise();
+
+      reject(new Error('test'));
+      reject(new Error('different message'));
+
+      await expect(promise).rejects.toThrow('test');
+    });
+
+    it('should still be rejected after resolve is called post-rejection', async () => {
+      const { promise, resolve, reject } = deferredPromise();
+
+      reject(new Error('test'));
+      resolve('different message');
+
+      await expect(promise).rejects.toThrow('test');
+    });
+
+    it('should still be resolved after resolve is called twice', async () => {
+      const { promise, resolve } = deferredPromise();
+
+      resolve('test');
+      resolve('different message');
+
+      await expect(promise).resolves.toBe('test');
+    });
+
+    it('should still be resolved after reject is called post-resolution', async () => {
+      const { promise, resolve, reject } = deferredPromise();
+
+      resolve('test');
+      reject(new Error('different message'));
+
+      await expect(promise).resolves.toBe('test');
+    });
+  });
+
+  describe('formatTxMetaForRpcResult', () => {
+    it('should correctly format the tx meta object (EIP-1559)', () => {
+      const txMeta = {
+        id: 1,
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: '0xc684832530fcbddae4b4230a47e991ddcec2831d',
+          to: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+          maxFeePerGas: '0x77359400',
+          maxPriorityFeePerGas: '0x77359400',
+          gas: '0x7b0d',
+          nonce: '0x4b',
+        },
+        type: TransactionType.simpleSend,
+        origin: 'other',
+        chainId: '0x5',
+        time: 1624408066355,
+        hash: '0x4bcb6cd6b182209585f8ad140260ddb35c81a575dd40f508d9767e652a9f60e7',
+        r: '0x4c3111e42ed5eec3dcecba1e234700f387e8693c373c61c3e54a762a26f1570e',
+        s: '0x18bfc4eeb7ebcfacc3bd59ea100a6834ea3265e65945dbec69aa2a06564fafff',
+        v: '0x29',
+      };
+      const expectedResult = {
+        accessList: null,
+        blockHash: null,
+        blockNumber: null,
+        from: '0xc684832530fcbddae4b4230a47e991ddcec2831d',
+        gas: '0x7b0d',
+        gasPrice: '0x77359400',
+        hash: '0x4bcb6cd6b182209585f8ad140260ddb35c81a575dd40f508d9767e652a9f60e7',
+        input: '0x',
+        maxFeePerGas: '0x77359400',
+        maxPriorityFeePerGas: '0x77359400',
+        nonce: '0x4b',
+        r: '0x4c3111e42ed5eec3dcecba1e234700f387e8693c373c61c3e54a762a26f1570e',
+        s: '0x18bfc4eeb7ebcfacc3bd59ea100a6834ea3265e65945dbec69aa2a06564fafff',
+        to: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+        transactionIndex: null,
+        type: '0x2',
+        v: '0x29',
+        value: '0x0',
+      };
+      const result = formatTxMetaForRpcResult(txMeta);
+      expect(result).toStrictEqual(expectedResult);
+    });
+
+    it('should correctly format the tx meta object (non EIP-1559)', () => {
+      const txMeta = {
+        id: 1,
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: '0xc684832530fcbddae4b4230a47e991ddcec2831d',
+          to: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+          gasPrice: '0x77359400',
+          gas: '0x7b0d',
+          nonce: '0x4b',
+        },
+        type: TransactionType.simpleSend,
+        origin: 'other',
+        chainId: '0x5',
+        time: 1624408066355,
+        hash: '0x4bcb6cd6b182209585f8ad140260ddb35c81a575dd40f508d9767e652a9f60e7',
+        r: '0x4c3111e42ed5eec3dcecba1e234700f387e8693c373c61c3e54a762a26f1570e',
+        s: '0x18bfc4eeb7ebcfacc3bd59ea100a6834ea3265e65945dbec69aa2a06564fafff',
+        v: '0x29',
+      };
+      const expectedResult = {
+        accessList: null,
+        blockHash: null,
+        blockNumber: null,
+        from: '0xc684832530fcbddae4b4230a47e991ddcec2831d',
+        gas: '0x7b0d',
+        hash: '0x4bcb6cd6b182209585f8ad140260ddb35c81a575dd40f508d9767e652a9f60e7',
+        input: '0x',
+        gasPrice: '0x77359400',
+        nonce: '0x4b',
+        r: '0x4c3111e42ed5eec3dcecba1e234700f387e8693c373c61c3e54a762a26f1570e',
+        s: '0x18bfc4eeb7ebcfacc3bd59ea100a6834ea3265e65945dbec69aa2a06564fafff',
+        to: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+        transactionIndex: null,
+        type: TransactionEnvelopeType.legacy,
+        v: '0x29',
+        value: '0x0',
+      };
+      const result = formatTxMetaForRpcResult(txMeta);
+      expect(result).toStrictEqual(expectedResult);
     });
   });
 });

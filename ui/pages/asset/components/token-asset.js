@@ -7,8 +7,9 @@ import TransactionList from '../../../components/app/transaction-list';
 import { TokenOverview } from '../../../components/app/wallet-overview';
 import {
   getCurrentChainId,
-  getSelectedIdentity,
+  getSelectedInternalAccount,
   getRpcPrefsForCurrentProvider,
+  getIsCustomNetwork,
 } from '../../../selectors/selectors';
 import {
   DEFAULT_ROUTE,
@@ -17,7 +18,7 @@ import {
 import { getURLHostName } from '../../../helpers/utils/util';
 import { showModal } from '../../../store/actions';
 import { MetaMetricsContext } from '../../../contexts/metametrics';
-import { EVENT } from '../../../../shared/constants/metametrics';
+import { MetaMetricsEventCategory } from '../../../../shared/constants/metametrics';
 import AssetNavigation from './asset-navigation';
 import AssetOptions from './asset-options';
 
@@ -25,9 +26,9 @@ export default function TokenAsset({ token }) {
   const dispatch = useDispatch();
   const chainId = useSelector(getCurrentChainId);
   const rpcPrefs = useSelector(getRpcPrefsForCurrentProvider);
-  const selectedIdentity = useSelector(getSelectedIdentity);
-  const selectedAccountName = selectedIdentity.name;
-  const selectedAddress = selectedIdentity.address;
+  const selectedAccount = useSelector(getSelectedInternalAccount);
+  const selectedAccountName = selectedAccount.metadata.name;
+  const selectedAddress = selectedAccount.address;
   const history = useHistory();
   const tokenTrackerLink = getTokenTrackerLink(
     token.address,
@@ -37,6 +38,8 @@ export default function TokenAsset({ token }) {
     rpcPrefs,
   );
   const trackEvent = useContext(MetaMetricsContext);
+
+  const isCustomNetwork = useSelector(getIsCustomNetwork);
 
   return (
     <>
@@ -51,11 +54,11 @@ export default function TokenAsset({ token }) {
                 showModal({ name: 'HIDE_TOKEN_CONFIRMATION', token, history }),
               )
             }
-            isEthNetwork={!rpcPrefs.blockExplorerUrl}
+            isCustomNetwork={isCustomNetwork}
             onClickBlockExplorer={() => {
               trackEvent({
                 event: 'Clicked Block Explorer Link',
-                category: EVENT.CATEGORIES.NAVIGATION,
+                category: MetaMetricsEventCategory.Navigation,
                 properties: {
                   link_type: 'Token Tracker',
                   action: 'Token Options',
@@ -63,9 +66,6 @@ export default function TokenAsset({ token }) {
                 },
               });
               global.platform.openTab({ url: tokenTrackerLink });
-            }}
-            onViewAccountDetails={() => {
-              dispatch(showModal({ name: 'ACCOUNT_DETAILS' }));
             }}
             onViewTokenDetails={() => {
               history.push(`${TOKEN_DETAILS}/${token.address}`);

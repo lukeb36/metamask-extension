@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import InfoTooltip from '../info-tooltip';
@@ -16,6 +16,16 @@ export const typeHash = {
   default: '',
 };
 
+/**
+ * @deprecated `<ActionableMessage />` has been deprecated in favor of the `<BannerAlert />`
+ * component in ./ui/components/component-library/banner-alert/banner-alert.js.
+ * See storybook documentation for BannerAlert here:
+ * {@see {@link https://metamask.github.io/metamask-storybook/?path=/docs/components-componentlibrary-banneralert--default-story#banneralert}}
+ *
+ * Help to replace `ActionableMessage` with `BannerAlert` by submitting a PR against
+ * {@link https://github.com/MetaMask/metamask-extension/issues/19528}
+ */
+
 export default function ActionableMessage({
   message = '',
   primaryAction = null,
@@ -26,10 +36,32 @@ export default function ActionableMessage({
   withRightButton = false,
   type = 'default',
   useIcon = false,
+  icon,
   iconFillColor = '',
   roundedButtons,
   dataTestId,
+  autoHideTime = 0,
+  onAutoHide,
 }) {
+  const [shouldDisplay, setShouldDisplay] = useState(true);
+  useEffect(
+    function () {
+      if (autoHideTime === 0) {
+        return undefined;
+      }
+
+      const timeout = setTimeout(() => {
+        onAutoHide?.();
+        setShouldDisplay(false);
+      }, autoHideTime);
+
+      return function () {
+        clearTimeout(timeout);
+      };
+    },
+    [autoHideTime, onAutoHide],
+  );
+
   const actionableMessageClassName = classnames(
     'actionable-message',
     typeHash[type],
@@ -41,9 +73,13 @@ export default function ActionableMessage({
   const onlyOneAction =
     (primaryAction && !secondaryAction) || (secondaryAction && !primaryAction);
 
+  if (!shouldDisplay) {
+    return null;
+  }
+
   return (
     <div className={actionableMessageClassName} data-testid={dataTestId}>
-      {useIcon ? <InfoTooltipIcon fillColor={iconFillColor} /> : null}
+      {useIcon ? icon || <InfoTooltipIcon fillColor={iconFillColor} /> : null}
       {infoTooltipText && (
         <InfoTooltip
           position="left"
@@ -150,6 +186,10 @@ ActionableMessage.propTypes = {
    */
   useIcon: PropTypes.bool,
   /**
+   * Custom icon component
+   */
+  icon: PropTypes.node,
+  /**
    * change tooltip icon color
    */
   iconFillColor: PropTypes.string,
@@ -158,4 +198,12 @@ ActionableMessage.propTypes = {
    */
   roundedButtons: PropTypes.bool,
   dataTestId: PropTypes.string,
+  /**
+   * Whether the actionable message should auto-hide itself after a given amount of time
+   */
+  autoHideTime: PropTypes.number,
+  /**
+   * Callback when autoHide time expires
+   */
+  onAutoHide: PropTypes.func,
 };

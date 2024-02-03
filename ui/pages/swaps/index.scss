@@ -2,6 +2,8 @@
 @import 'awaiting-signatures/index';
 @import 'smart-transaction-status/index';
 @import 'build-quote/index';
+@import 'prepare-swap-page/index';
+@import 'notification-page/index';
 @import 'countdown-timer/index';
 @import 'dropdown-input-pair/index';
 @import 'dropdown-search-list/index';
@@ -14,14 +16,19 @@
 @import 'slippage-buttons/index';
 @import 'swaps-footer/index';
 @import 'view-quote/index';
-@import 'import-token/index';
+@import 'create-new-swap/index';
+@import 'view-on-block-explorer/index';
+@import 'transaction-settings/index';
+@import 'list-with-search/index';
+@import 'popover-custom-background/index';
+@import 'mascot-background-animation/index';
 
 .swaps {
   display: flex;
   justify-content: center;
   width: 100%;
 
-  @media screen and (min-width: $break-large) {
+  @include screen-sm-min {
     z-index: 12;
   }
 
@@ -29,7 +36,7 @@
     margin-left: 24px;
     margin-right: 24px;
 
-    @media screen and (min-width: $break-large) {
+    @include screen-sm-min {
       margin-left: 20px;
       margin-right: 20px;
     }
@@ -44,11 +51,11 @@
     overflow-x: hidden;
     overflow-y: auto;
 
-    @media screen and (min-width: $break-large) {
+    @include screen-sm-min {
       width: 460px;
       background: var(--color-background-default);
+      box-shadow: var(--shadow-size-xs) var(--color-shadow-default);
       border: 1px solid var(--color-border-muted);
-      box-shadow: 0 0 7px 0 rgba(0, 0, 0, 0.08);
       border-radius: 8px;
       height: 620px;
     }
@@ -62,14 +69,20 @@
     width: 100%;
     height: 100%;
 
-    @media screen and (max-width: $break-small) {
+    @include screen-sm-max {
       &--overflow {
         overflow: scroll;
       }
     }
 
-    @media screen and (min-width: $break-large) {
+    @include screen-sm-min {
       width: 348px;
+    }
+
+    &--redesign-enabled {
+      @include screen-sm-min {
+        width: 100%;
+      }
     }
   }
 
@@ -88,16 +101,18 @@
     flex-flow: column;
     justify-content: center;
     align-items: center;
-    padding-top: 0;
-    padding-bottom: 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
     background: var(--color-background-alternative);
     width: 100%;
-    position: relative;
     flex-direction: row;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 
-    @media screen and (min-width: $break-large) {
-      padding-top: 8px;
-      padding-bottom: 8px;
+    @include screen-sm-min {
+      padding-top: 12px;
+      padding-bottom: 12px;
       height: 66px;
     }
   }
@@ -143,5 +158,19 @@
   &__notification-title {
     font-weight: bold;
     margin-right: 14px;
+  }
+}
+
+.mm-modal {
+  &__custom-scrollbar {
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      -webkit-border-radius: 10px;
+      border-radius: 10px;
+      background: var(--color-icon-muted);
+    }
   }
 }

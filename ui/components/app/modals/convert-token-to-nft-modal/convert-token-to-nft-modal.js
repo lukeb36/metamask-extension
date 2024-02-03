@@ -4,23 +4,20 @@ import { useHistory } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import Modal from '../../modal';
 import Typography from '../../../ui/typography';
-import { TYPOGRAPHY } from '../../../../helpers/constants/design-system';
+import { TypographyVariant } from '../../../../helpers/constants/design-system';
 import withModalProps from '../../../../helpers/higher-order-components/with-modal-props';
 import { useI18nContext } from '../../../../hooks/useI18nContext';
-import {
-  ADD_COLLECTIBLE_ROUTE,
-  ASSET_ROUTE,
-} from '../../../../helpers/constants/routes';
-import { getCollectibles } from '../../../../ducks/metamask/metamask';
-import { removeToken } from '../../../../store/actions';
+import { ASSET_ROUTE } from '../../../../helpers/constants/routes';
+import { getNfts } from '../../../../ducks/metamask/metamask';
+import { ignoreTokens, showImportNftsModal } from '../../../../store/actions';
 import { isEqualCaseInsensitive } from '../../../../../shared/modules/string-utils';
 
 const ConvertTokenToNFTModal = ({ hideModal, tokenAddress }) => {
   const history = useHistory();
   const t = useI18nContext();
   const dispatch = useDispatch();
-  const allCollectibles = useSelector(getCollectibles);
-  const tokenAddedAsNFT = allCollectibles.find(({ address }) =>
+  const allNfts = useSelector(getNfts);
+  const tokenAddedAsNFT = allNfts.find(({ address }) =>
     isEqualCaseInsensitive(address, tokenAddress),
   );
 
@@ -28,16 +25,20 @@ const ConvertTokenToNFTModal = ({ hideModal, tokenAddress }) => {
     <Modal
       onSubmit={async () => {
         if (tokenAddedAsNFT) {
-          await dispatch(removeToken(tokenAddress));
+          await dispatch(
+            ignoreTokens({
+              tokensToIgnore: tokenAddress,
+              dontShowLoadingIndicator: true,
+            }),
+          );
           const { tokenId } = tokenAddedAsNFT;
           history.push({
             pathname: `${ASSET_ROUTE}/${tokenAddress}/${tokenId}`,
           });
         } else {
-          history.push({
-            pathname: ADD_COLLECTIBLE_ROUTE,
-            state: { tokenAddress },
-          });
+          dispatch(
+            showImportNftsModal({ tokenAddress, ignoreErc20Token: true }),
+          );
         }
         hideModal();
       }}
@@ -47,7 +48,7 @@ const ConvertTokenToNFTModal = ({ hideModal, tokenAddress }) => {
     >
       <div className="convert-token-to-nft-modal">
         <Typography
-          variant={TYPOGRAPHY.H6}
+          variant={TypographyVariant.H6}
           boxProps={{
             marginTop: 2,
           }}

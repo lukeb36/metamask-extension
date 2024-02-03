@@ -1,6 +1,6 @@
 const { Builder } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
-const proxy = require('selenium-webdriver/proxy');
+const { ThenableWebDriver } = require('selenium-webdriver'); // eslint-disable-line no-unused-vars -- this is imported for JSDoc
 
 /**
  * Proxy host to use for HTTPS requests
@@ -13,15 +13,32 @@ const HTTPS_PROXY_HOST = '127.0.0.1:8000';
  * A wrapper around a {@code WebDriver} instance exposing Chrome-specific functionality
  */
 class ChromeDriver {
-  static async build({ responsive, port }) {
-    const args = [`load-extension=dist/chrome`];
-    if (responsive) {
+  static async build({ openDevToolsForTabs, port }) {
+    const args = [`--proxy-server=${HTTPS_PROXY_HOST}`]; // Set proxy in the way that doesn't interfere with Selenium Manager
+
+    if (process.env.MULTIPROVIDER) {
+      args.push(
+        `load-extension=${process.cwd()}/dist/chrome,${process.cwd()}/dist/chrome2`,
+      );
+    } else {
+      args.push(`load-extension=${process.cwd()}/dist/chrome`);
+    }
+    if (openDevToolsForTabs) {
       args.push('--auto-open-devtools-for-tabs');
     }
-    args.push('--log-level=3');
+
+    if (process.env.ENABLE_MV3) {
+      args.push('--log-level=0');
+      args.push('--enable-logging');
+      args.push(`--user-data-dir=${process.cwd()}/test-artifacts/chrome`);
+    } else {
+      args.push('--log-level=3');
+    }
     const options = new chrome.Options().addArguments(args);
-    options.setProxy(proxy.manual({ https: HTTPS_PROXY_HOST }));
     options.setAcceptInsecureCerts(true);
+    options.setUserPreferences({
+      'download.default_directory': `${process.cwd()}/test-artifacts/downloads`,
+    });
     const builder = new Builder()
       .forBrowser('chrome')
       .setChromeOptions(options);

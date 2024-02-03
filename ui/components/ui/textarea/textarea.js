@@ -4,14 +4,23 @@ import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
 import {
-  COLORS,
-  RESIZE,
-  SIZES,
-  BORDER_STYLE,
-  BLOCK_SIZES,
+  BorderStyle,
+  BlockSize,
+  Size,
+  BorderColor,
+  BackgroundColor,
 } from '../../../helpers/constants/design-system';
-
 import Box from '../box';
+import { RESIZE } from './textarea.constants';
+
+/**
+ * @deprecated `<TextArea />` has been deprecated in favor of the `<Textarea />`
+ * component in ./ui/components/component-library/textarea/textarea.tsx.
+ * See storybook documentation for BannerAlert here:
+ * {@see {@link https://metamask.github.io/metamask-storybook/?path=/docs/components-componentlibrary-textarea--default-story#textarea}}
+ *
+ * Help to replace `<TextArea />` with `<Textarea />` by submitting a PR
+ */
 
 const TextArea = ({
   className,
@@ -34,12 +43,12 @@ const TextArea = ({
   );
   return (
     <Box
-      backgroundColor={COLORS.BACKGROUND_DEFAULT}
-      borderColor={COLORS.BORDER_DEFAULT}
-      borderRadius={SIZES.SM}
-      borderStyle={BORDER_STYLE.SOLID}
-      padding={[4, 4]}
-      width={BLOCK_SIZES.FULL}
+      backgroundColor={BackgroundColor.backgroundDefault}
+      borderColor={BorderColor.borderDefault}
+      borderRadius={Size.SM}
+      borderStyle={BorderStyle.solid}
+      padding={4}
+      width={BlockSize.Full}
       {...boxProps}
     >
       {(boxClassName) => (

@@ -2,24 +2,28 @@ import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Redirect, useParams } from 'react-router-dom';
 import { isEqualCaseInsensitive } from '../../../shared/modules/string-utils';
-import CollectibleDetails from '../../components/app/collectible-details/collectible-details';
-import { getCollectibles, getTokens } from '../../ducks/metamask/metamask';
+import NftDetails from '../../components/app/nft-details/nft-details';
+import {
+  getNativeCurrency,
+  getNfts,
+  getTokens,
+} from '../../ducks/metamask/metamask';
 import { DEFAULT_ROUTE } from '../../helpers/constants/routes';
 
 import NativeAsset from './components/native-asset';
 import TokenAsset from './components/token-asset';
 
 const Asset = () => {
-  const nativeCurrency = useSelector((state) => state.metamask.nativeCurrency);
+  const nativeCurrency = useSelector(getNativeCurrency);
   const tokens = useSelector(getTokens);
-  const collectibles = useSelector(getCollectibles);
+  const nfts = useSelector(getNfts);
   const { asset, id } = useParams();
 
   const token = tokens.find(({ address }) =>
     isEqualCaseInsensitive(address, asset),
   );
 
-  const collectible = collectibles.find(
+  const nft = nfts.find(
     ({ address, tokenId }) =>
       isEqualCaseInsensitive(address, asset) && id === tokenId.toString(),
   );
@@ -30,8 +34,8 @@ const Asset = () => {
   }, []);
 
   let content;
-  if (collectible) {
-    content = <CollectibleDetails collectible={collectible} />;
+  if (nft) {
+    content = <NftDetails nft={nft} />;
   } else if (token) {
     content = <TokenAsset token={token} />;
   } else if (asset === nativeCurrency) {

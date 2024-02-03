@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { Icon, IconName } from '../../component-library';
 import TabBar from '.';
 
 export default {
   title: 'Components/App/TabBar',
-  id: __filename,
+
   argTypes: {
     isActive: {
       action: 'isActive',
@@ -18,28 +19,27 @@ export default {
   args: {
     tabs: [
       {
-        icon: <i className="fa fa-cog" />,
+        icon: <Icon name={IconName.Setting} />,
         content: 'General',
         key: 'general',
       },
       {
-        icon: <i className="fa fa-address-book" />,
+        icon: <Icon name={IconName.Book} />,
         content: 'Contacts',
         key: 'contacts',
       },
       {
-        icon: <i className="fa fa-flask" />,
+        icon: <Icon name={IconName.Snaps} />,
         content: 'Snaps',
         key: 'snaps',
       },
-
       {
         icon: <i className="fa fa-lock" />,
         content: 'SecurityAndPrivacy',
         key: 'securityAndPrivacy',
       },
       {
-        icon: <i className="fa fa-bell" />,
+        icon: <Icon name={IconName.Notification} />,
         content: 'Alerts',
         key: 'alerts',
       },
@@ -54,7 +54,7 @@ export default {
         key: 'experimental',
       },
       {
-        icon: <i className="fa fa-info-circle" />,
+        icon: <Icon name={IconName.Info} />,
         content: 'About',
         key: 'about',
       },

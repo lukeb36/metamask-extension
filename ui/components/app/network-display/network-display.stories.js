@@ -1,27 +1,28 @@
 import React from 'react';
 
 import {
-  NETWORK_TYPE_TO_ID_MAP,
-  NETWORK_TYPE_RPC,
+  BUILT_IN_NETWORKS,
+  NETWORK_TYPES,
 } from '../../../../shared/constants/network';
-import { SIZES } from '../../../helpers/constants/design-system';
+import { Severity, Size } from '../../../helpers/constants/design-system';
 
+import { BannerAlert } from '../../component-library/banner-alert';
 import NetworkDisplay from '.';
 
 export default {
   title: 'Components/App/NetworkDisplay',
-  id: __filename,
+
   argTypes: {
     indicatorSize: {
       control: 'select',
-      options: Object.values(SIZES),
+      options: Object.values(Size),
     },
     labelProps: {
       control: 'object',
     },
     targetNetwork: {
       control: 'select',
-      options: [...Object.keys(NETWORK_TYPE_TO_ID_MAP), NETWORK_TYPE_RPC],
+      options: [...Object.keys(BUILT_IN_NETWORKS), NETWORK_TYPES.RPC],
     },
     disabled: {
       control: 'boolean',
@@ -33,26 +34,39 @@ export default {
     },
   },
   args: {
-    targetNetwork: 'ropsten',
+    targetNetwork: 'goerli',
   },
 };
 
 export const DefaultStory = (args) => (
-  <NetworkDisplay
-    {...args}
-    targetNetwork={{
-      type: args.targetNetwork,
-      nickname: args.targetNetwork,
-    }}
-  />
+  <>
+    <BannerAlert
+      severity={Severity.Warning}
+      title="Deprecated"
+      description="The <NetworkDisplay> component has been deprecated in favor of the new <PickerNetwork> component from the component-library.
+        Please update your code to use the new <PickerNetwork> component instead, which can be found at ui/components/component-library/picker-network/picker-network.tsx."
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/20485',
+      }}
+      marginBottom={4}
+    />
+    <NetworkDisplay
+      {...args}
+      targetNetwork={{
+        type: args.targetNetwork,
+        nickname: args.targetNetwork,
+      }}
+    />
+  </>
 );
 
 DefaultStory.storyName = 'Default';
 
 export const TargetNetwork = (args) => {
   const targetNetworkArr = [
-    ...Object.keys(NETWORK_TYPE_TO_ID_MAP),
-    NETWORK_TYPE_RPC,
+    ...Object.keys(BUILT_IN_NETWORKS),
+    NETWORK_TYPES.RPC,
   ];
   return (
     <>
@@ -72,8 +86,8 @@ export const TargetNetwork = (args) => {
 
 export const DisplayOnly = (args) => {
   const targetNetworkArr = [
-    ...Object.keys(NETWORK_TYPE_TO_ID_MAP),
-    NETWORK_TYPE_RPC,
+    ...Object.keys(BUILT_IN_NETWORKS),
+    NETWORK_TYPES.RPC,
   ];
   return (
     <>

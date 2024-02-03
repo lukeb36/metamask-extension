@@ -1,6 +1,16 @@
 import { connect } from 'react-redux';
 import { compose } from 'redux';
 import { withRouter } from 'react-router-dom';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+import { showCustodianDeepLink } from '@metamask-institutional/extension';
+import { mmiActionsFactory } from '../../store/institutional/institution-background';
+import { CHAIN_ID_TO_RPC_URL_MAP } from '../../../shared/constants/network';
+
+///: END:ONLY_INCLUDE_IF
 import { clearConfirmTransaction } from '../../ducks/confirm-transaction/confirm-transaction.duck';
 
 import {
@@ -12,8 +22,10 @@ import {
   getNextNonce,
   tryReverseResolveAddress,
   setDefaultHomeActiveTabName,
+  addToAddressBook,
+  updateTransaction,
 } from '../../store/actions';
-import { isBalanceSufficient, calcGasTotal } from '../send/send.utils';
+import { isBalanceSufficient } from '../send/send.utils';
 import { shortenAddress, valuesFor } from '../../helpers/utils/util';
 import {
   getAdvancedInlineGasShown,
@@ -29,12 +41,16 @@ import {
   checkNetworkAndAccountSupports1559,
   getPreferences,
   doesAddressRequireLedgerHidConnection,
-  getUseTokenDetection,
   getTokenList,
   getIsMultiLayerFeeNetwork,
-  getEIP1559V2Enabled,
   getIsBuyableChain,
   getEnsResolutionByAddress,
+  getUnapprovedTransaction,
+  getFullTxData,
+  getUseCurrencyRateCheck,
+  getUnapprovedTransactions,
+  getInternalAccountByAddress,
+  getApprovedAndSignedTransactions,
 } from '../../selectors';
 import { getMostRecentOverviewPage } from '../../ducks/history/history';
 import {
@@ -42,20 +58,47 @@ import {
   updateGasFees,
   getIsGasEstimatesLoading,
   getNativeCurrency,
+  getSendToAccounts,
+  getProviderConfig,
+  findKeyringForAddress,
+  getConversionRate,
 } from '../../ducks/metamask/metamask';
+import {
+  addHexPrefix,
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  getEnvironmentType,
+  ///: END:ONLY_INCLUDE_IF
+} from '../../../app/scripts/lib/util';
 
 import {
   parseStandardTokenTransactionData,
-  transactionMatchesNetwork,
   txParamsAreDappSuggested,
 } from '../../../shared/modules/transaction.utils';
-import { toChecksumHexAddress } from '../../../shared/modules/hexstring-utils';
+import {
+  isEmptyHexString,
+  toChecksumHexAddress,
+} from '../../../shared/modules/hexstring-utils';
 
 import { getGasLoadingAnimationIsShowing } from '../../ducks/app/app';
 import { isLegacyTransaction } from '../../helpers/utils/transactions.util';
 import { CUSTOM_GAS_ESTIMATE } from '../../../shared/constants/gas';
-import { isEqualCaseInsensitive } from '../../../shared/modules/string-utils';
+
+// eslint-disable-next-line import/no-duplicates
+import { getIsUsingPaymaster } from '../../selectors/account-abstraction';
+
+///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+// eslint-disable-next-line import/no-duplicates
+import { getAccountType } from '../../selectors/selectors';
+
+import { ENVIRONMENT_TYPE_NOTIFICATION } from '../../../shared/constants/app';
+import {
+  getIsNoteToTraderSupported,
+  getIsCustodianPublishesTransactionSupported,
+} from '../../selectors/institutional/selectors';
+import { showCustodyConfirmLink } from '../../store/institutional/institution-actions';
+///: END:ONLY_INCLUDE_IF
 import { getTokenAddressParam } from '../../helpers/utils/token-util';
+import { calcGasTotal } from '../../../shared/lib/transactions-controller-utils';
 import ConfirmTransactionBase from './confirm-transaction-base.component';
 
 let customNonceValue = '';
@@ -67,6 +110,14 @@ const customNonceMerge = (txData) =>
       }
     : txData;
 
+function addressIsNew(toAccounts, newAddress) {
+  const newAddressNormalized = newAddress.toLowerCase();
+  const foundMatching = toAccounts.some(
+    ({ address }) => address.toLowerCase() === newAddressNormalized,
+  );
+  return !foundMatching;
+}
+
 const mapStateToProps = (state, ownProps) => {
   const {
     toAddress: propsToAddress,
@@ -76,27 +127,23 @@ const mapStateToProps = (state, ownProps) => {
   const { id: paramsTransactionId } = params;
   const isMainnet = getIsMainnet(state);
 
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  const envType = getEnvironmentType();
+  const isNotification = envType === ENVIRONMENT_TYPE_NOTIFICATION;
+  ///: END:ONLY_INCLUDE_IF
+
   const isGasEstimatesLoading = getIsGasEstimatesLoading(state);
   const gasLoadingAnimationIsShowing = getGasLoadingAnimationIsShowing(state);
   const isBuyableChain = getIsBuyableChain(state);
   const { confirmTransaction, metamask } = state;
-  const {
-    conversionRate,
-    identities,
-    addressBook,
-    network,
-    unapprovedTxs,
-    nextNonce,
-    allCollectibleContracts,
-    selectedAddress,
-    provider: { chainId },
-  } = metamask;
+  const conversionRate = getConversionRate(state);
+  const { addressBook, nextNonce } = metamask;
+  const unapprovedTxs = getUnapprovedTransactions(state);
+  const { chainId } = getProviderConfig(state);
   const { tokenData, txData, tokenProps, nonce } = confirmTransaction;
   const { txParams = {}, id: transactionId, type } = txData;
-  const transaction =
-    Object.values(unapprovedTxs).find(
-      ({ id }) => id === (transactionId || Number(paramsTransactionId)),
-    ) || {};
+  const txId = transactionId || paramsTransactionId;
+  const transaction = getUnapprovedTransaction(state, txId);
   const {
     from: fromAddress,
     to: txParamsToAddress,
@@ -111,25 +158,24 @@ const mapStateToProps = (state, ownProps) => {
   const tokenToAddress = getTokenAddressParam(transactionData);
 
   const { balance } = accounts[fromAddress];
-  const { name: fromName } = identities[fromAddress];
-  const toAddress = propsToAddress || tokenToAddress || txParamsToAddress;
+  const fromName = getInternalAccountByAddress(state, fromAddress)?.metadata
+    .name;
+  const keyring = findKeyringForAddress(state, fromAddress);
+
+  const isSendingAmount =
+    type === TransactionType.simpleSend || !isEmptyHexString(amount);
+
+  const toAddress = isSendingAmount
+    ? txParamsToAddress
+    : propsToAddress || tokenToAddress || txParamsToAddress;
+
+  const toAccounts = getSendToAccounts(state);
 
   const tokenList = getTokenList(state);
-  const useTokenDetection = getUseTokenDetection(state);
-  let casedTokenList = tokenList;
-  if (!process.env.TOKEN_DETECTION_V2) {
-    casedTokenList = useTokenDetection
-      ? tokenList
-      : Object.keys(tokenList).reduce((acc, base) => {
-          return {
-            ...acc,
-            [base.toLowerCase()]: tokenList[base],
-          };
-        }, {});
-  }
+
   const toName =
-    identities[toAddress]?.name ||
-    casedTokenList[toAddress]?.name ||
+    getInternalAccountByAddress(state, toAddress)?.metadata.name ||
+    tokenList[toAddress?.toLowerCase()]?.name ||
     shortenAddress(toChecksumHexAddress(toAddress));
 
   const checksummedAddress = toChecksumHexAddress(toAddress);
@@ -145,20 +191,13 @@ const mapStateToProps = (state, ownProps) => {
 
   const {
     hexTransactionAmount,
-    hexMinimumTransactionFee,
     hexMaximumTransactionFee,
-    hexTransactionTotal,
+    hexMinimumTransactionFee,
     gasEstimationObject,
   } = transactionFeeSelector(state, transaction);
 
-  if (transaction && transaction.simulationFails) {
-    txData.simulationFails = transaction.simulationFails;
-  }
-
   const currentNetworkUnapprovedTxs = Object.keys(unapprovedTxs)
-    .filter((key) =>
-      transactionMatchesNetwork(unapprovedTxs[key], chainId, network),
-    )
+    .filter((key) => unapprovedTxs[key].chainId === chainId)
     .reduce((acc, key) => ({ ...acc, [key]: unapprovedTxs[key] }), {});
   const unapprovedTxCount = valuesFor(currentNetworkUnapprovedTxs).length;
 
@@ -171,21 +210,11 @@ const mapStateToProps = (state, ownProps) => {
 
   const methodData = getKnownMethodData(state, data) || {};
 
-  let fullTxData = { ...txData, ...transaction };
-  if (customTxParamsData) {
-    fullTxData = {
-      ...fullTxData,
-      txParams: {
-        ...fullTxData.txParams,
-        data: customTxParamsData,
-      },
-    };
-  }
-
-  const isCollectibleTransfer = Boolean(
-    allCollectibleContracts?.[selectedAddress]?.[chainId]?.find((contract) => {
-      return isEqualCaseInsensitive(contract.address, fullTxData.txParams.to);
-    }),
+  const fullTxData = getFullTxData(
+    state,
+    txId,
+    TransactionStatus.unapproved,
+    customTxParamsData,
   );
 
   customNonceValue = getCustomNonceValue(state);
@@ -197,27 +226,44 @@ const mapStateToProps = (state, ownProps) => {
     txParamsAreDappSuggested(fullTxData);
   const fromAddressIsLedger = isAddressLedger(state, fromAddress);
   const nativeCurrency = getNativeCurrency(state);
-
-  const hardwareWalletRequiresConnection = doesAddressRequireLedgerHidConnection(
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  const accountType = getAccountType(state, fromAddress);
+  const fromChecksumHexAddress = toChecksumHexAddress(fromAddress);
+  const isNoteToTraderSupported = getIsNoteToTraderSupported(
     state,
-    fromAddress,
+    fromChecksumHexAddress,
   );
+  const custodianPublishesTransaction =
+    getIsCustodianPublishesTransactionSupported(state, fromChecksumHexAddress);
+  const builtinRpcUrl = CHAIN_ID_TO_RPC_URL_MAP[chainId];
+  const { rpcUrl: customRpcUrl } = getProviderConfig(state);
+
+  const rpcUrl = customRpcUrl || builtinRpcUrl;
+
+  ///: END:ONLY_INCLUDE_IF
+
+  const hardwareWalletRequiresConnection =
+    doesAddressRequireLedgerHidConnection(state, fromAddress);
 
   const isMultiLayerFeeNetwork = getIsMultiLayerFeeNetwork(state);
-  const eip1559V2Enabled = getEIP1559V2Enabled(state);
+  const isUsingPaymaster = getIsUsingPaymaster(state);
+
+  const isSigningOrSubmitting = Boolean(
+    getApprovedAndSignedTransactions(state).length,
+  );
 
   return {
     balance,
     fromAddress,
     fromName,
+    toAccounts,
     toAddress,
     toEns,
     toName,
     toNickname,
     hexTransactionAmount,
-    hexMinimumTransactionFee,
     hexMaximumTransactionFee,
-    hexTransactionTotal,
+    hexMinimumTransactionFee,
     txData: fullTxData,
     tokenData,
     methodData,
@@ -227,7 +273,6 @@ const mapStateToProps = (state, ownProps) => {
     nonce,
     unapprovedTxs,
     unapprovedTxCount,
-    currentNetworkUnapprovedTxs,
     customGas: {
       gasLimit,
       gasPrice,
@@ -236,7 +281,6 @@ const mapStateToProps = (state, ownProps) => {
     useNonceField: getUseNonceField(state),
     customNonceValue,
     insufficientBalance,
-    hideSubtitle: !getShouldShowFiat(state) && !isCollectibleTransfer,
     hideFiatConversion: !getShouldShowFiat(state),
     type,
     nextNonce,
@@ -256,12 +300,25 @@ const mapStateToProps = (state, ownProps) => {
     hardwareWalletRequiresConnection,
     isMultiLayerFeeNetwork,
     chainId,
-    eip1559V2Enabled,
     isBuyableChain,
+    useCurrencyRateCheck: getUseCurrencyRateCheck(state),
+    keyringForAccount: keyring,
+    isUsingPaymaster,
+    isSigningOrSubmitting,
+    ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+    accountType,
+    isNoteToTraderSupported,
+    isNotification,
+    custodianPublishesTransaction,
+    rpcUrl,
+    ///: END:ONLY_INCLUDE_IF
   };
 };
 
 export const mapDispatchToProps = (dispatch) => {
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  const mmiActions = mmiActionsFactory();
+  ///: END:ONLY_INCLUDE_IF
   return {
     tryReverseResolveAddress: (address) => {
       return dispatch(tryReverseResolveAddress(address));
@@ -284,15 +341,64 @@ export const mapDispatchToProps = (dispatch) => {
     },
     cancelTransaction: ({ id }) => dispatch(cancelTx({ id })),
     cancelAllTransactions: (txList) => dispatch(cancelTxs(txList)),
-    sendTransaction: (txData) =>
-      dispatch(updateAndApproveTx(customNonceMerge(txData))),
+    sendTransaction: (
+      txData,
+      dontShowLoadingIndicator,
+      loadingIndicatorMessage,
+    ) =>
+      dispatch(
+        updateAndApproveTx(
+          customNonceMerge(txData),
+          dontShowLoadingIndicator,
+          loadingIndicatorMessage,
+        ),
+      ),
+    updateTransaction: (txMeta) => {
+      dispatch(updateTransaction(txMeta, true));
+    },
     getNextNonce: () => dispatch(getNextNonce()),
     setDefaultHomeActiveTabName: (tabName) =>
       dispatch(setDefaultHomeActiveTabName(tabName)),
     updateTransactionGasFees: (gasFees) => {
       dispatch(updateGasFees({ ...gasFees, expectHexWei: true }));
     },
-    showBuyModal: () => dispatch(showModal({ name: 'DEPOSIT_ETHER' })),
+    addToAddressBookIfNew: (newAddress, toAccounts, nickname = '') => {
+      const hexPrefixedAddress = addHexPrefix(newAddress);
+      if (addressIsNew(toAccounts, hexPrefixedAddress)) {
+        dispatch(addToAddressBook(hexPrefixedAddress, nickname));
+      }
+    },
+    ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+    getCustodianConfirmDeepLink: (id) =>
+      dispatch(mmiActions.getCustodianConfirmDeepLink(id)),
+    showTransactionsFailedModal: (errorMessage, closeNotification) =>
+      dispatch(
+        showModal({
+          name: 'TRANSACTION_FAILED',
+          errorMessage,
+          closeNotification,
+        }),
+      ),
+    showCustodianDeepLink: ({
+      txId,
+      fromAddress,
+      closeNotification,
+      onDeepLinkFetched,
+      onDeepLinkShown,
+    }) =>
+      showCustodianDeepLink({
+        dispatch,
+        mmiActions,
+        txId,
+        fromAddress,
+        closeNotification,
+        onDeepLinkFetched,
+        onDeepLinkShown,
+        showCustodyConfirmLink,
+      }),
+    setWaitForConfirmDeepLinkDialog: (wait) =>
+      dispatch(mmiActions.setWaitForConfirmDeepLinkDialog(wait)),
+    ///: END:ONLY_INCLUDE_IF
   };
 };
 
@@ -304,6 +410,14 @@ const mergeProps = (stateProps, dispatchProps, ownProps) => {
     updateTransactionGasFees: dispatchUpdateTransactionGasFees,
     ...otherDispatchProps
   } = dispatchProps;
+
+  let isMainBetaFlask = ownProps.isMainBetaFlask || false;
+
+  ///: BEGIN:ONLY_INCLUDE_IF(build-main,build-beta,build-flask)
+  if (ownProps.isMainBetaFlask === undefined) {
+    isMainBetaFlask = true;
+  }
+  ///: END:ONLY_INCLUDE_IF
 
   return {
     ...stateProps,
@@ -318,6 +432,7 @@ const mergeProps = (stateProps, dispatchProps, ownProps) => {
         transaction: txData,
       });
     },
+    isMainBetaFlask,
   };
 };
 

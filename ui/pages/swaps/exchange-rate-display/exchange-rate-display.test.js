@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { renderWithProvider } from '../../../../test/jest';
+import { renderWithProvider, fireEvent } from '../../../../test/jest';
 import ExchangeRateDisplay from '.';
 
 const createProps = (customProps = {}) => {
@@ -24,5 +24,20 @@ describe('ExchangeRateDisplay', () => {
     expect(getByText(props.primaryTokenSymbol)).toBeInTheDocument();
     expect(getByText(props.secondaryTokenSymbol)).toBeInTheDocument();
     expect(container).toMatchSnapshot();
+  });
+
+  it('clicks on the switch link', () => {
+    const props = createProps();
+    props.showIconForSwappingTokens = true;
+    const { getByTestId } = renderWithProvider(
+      <ExchangeRateDisplay {...props} />,
+    );
+    expect(getByTestId('exchange-rate-display-base-symbol')).toHaveTextContent(
+      'ETH',
+    );
+    fireEvent.click(getByTestId('exchange-rate-display-switch'));
+    expect(getByTestId('exchange-rate-display-base-symbol')).toHaveTextContent(
+      'BAT',
+    );
   });
 });

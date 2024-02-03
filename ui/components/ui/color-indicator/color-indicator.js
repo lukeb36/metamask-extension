@@ -1,12 +1,16 @@
 import React from 'react';
 import classnames from 'classnames';
 import PropTypes from 'prop-types';
-import { COLORS, SIZES } from '../../../helpers/constants/design-system';
+import {
+  BorderColor,
+  Size,
+  Color,
+} from '../../../helpers/constants/design-system';
 
 export default function ColorIndicator({
-  size = SIZES.SM,
+  size = Size.SM,
   type = 'outlined',
-  color = COLORS.ICON_MUTED,
+  color = Color.iconMuted,
   borderColor,
   iconClassName,
 }) {
@@ -19,7 +23,10 @@ export default function ColorIndicator({
   });
 
   return (
-    <div className={colorIndicatorClassName}>
+    <div
+      className={colorIndicatorClassName}
+      data-testid={`color-icon-${color}`}
+    >
       {iconClassName ? (
         <i className={classnames('color-indicator__icon', iconClassName)} />
       ) : (
@@ -36,9 +43,9 @@ ColorIndicator.TYPES = {
 };
 
 ColorIndicator.propTypes = {
-  color: PropTypes.oneOf(Object.values(COLORS)),
-  borderColor: PropTypes.oneOf(Object.values(COLORS)),
-  size: PropTypes.oneOf(Object.values(SIZES)),
+  color: PropTypes.oneOf(Object.values(Color)),
+  borderColor: PropTypes.oneOf(Object.values(BorderColor)),
+  size: PropTypes.oneOf(Object.values(Size)),
   iconClassName: PropTypes.string,
   type: PropTypes.oneOf(Object.values(ColorIndicator.TYPES)),
 };

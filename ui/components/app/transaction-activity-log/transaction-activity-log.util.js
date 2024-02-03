@@ -1,6 +1,6 @@
-import { TRANSACTION_TYPES } from '../../../../shared/constants/transaction';
+import { TransactionType } from '@metamask/transaction-controller';
+import { sumHexes } from '../../../../shared/modules/conversion.utils';
 import { getHexGasTotal } from '../../../helpers/utils/confirm-tx.util';
-import { sumHexes } from '../../../helpers/utils/transactions.util';
 
 import {
   // event constants
@@ -44,7 +44,7 @@ const statusHash = {
 
 /**
  * @name getActivities
- * @param {Object} transaction - txMeta object
+ * @param {object} transaction - txMeta object
  * @param {boolean} isFirstTransaction - True if the transaction is the first created transaction
  * in the list of transactions with the same nonce. If so, we use this transaction to create the
  * transactionCreated activity.
@@ -54,7 +54,6 @@ export function getActivities(transaction, isFirstTransaction = false) {
   const {
     id,
     chainId,
-    metamaskNetworkId,
     hash,
     history = [],
     txParams: {
@@ -98,7 +97,6 @@ export function getActivities(transaction, isFirstTransaction = false) {
           id,
           hash,
           chainId,
-          metamaskNetworkId,
           eventKey: TRANSACTION_CREATED_EVENT,
           timestamp,
           value,
@@ -136,13 +134,13 @@ export function getActivities(transaction, isFirstTransaction = false) {
                 // If the status is 'submitted', we need to determine whether the event is a
                 // transaction retry or a cancellation attempt.
                 if (value === SUBMITTED_STATUS) {
-                  if (type === TRANSACTION_TYPES.RETRY) {
+                  if (type === TransactionType.retry) {
                     eventKey = TRANSACTION_RESUBMITTED_EVENT;
-                  } else if (type === TRANSACTION_TYPES.CANCEL) {
+                  } else if (type === TransactionType.cancel) {
                     eventKey = TRANSACTION_CANCEL_ATTEMPTED_EVENT;
                   }
                 } else if (value === CONFIRMED_STATUS) {
-                  if (type === TRANSACTION_TYPES.CANCEL) {
+                  if (type === TransactionType.cancel) {
                     eventKey = TRANSACTION_CANCEL_SUCCESS_EVENT;
                   }
                 }
@@ -152,7 +150,6 @@ export function getActivities(transaction, isFirstTransaction = false) {
                   eventKey,
                   timestamp,
                   chainId,
-                  metamaskNetworkId,
                   value: gasFee,
                 });
               }
@@ -209,7 +206,6 @@ export function getActivities(transaction, isFirstTransaction = false) {
                 id,
                 hash,
                 chainId,
-                metamaskNetworkId,
                 eventKey: TRANSACTION_UPDATED_EVENT,
                 timestamp,
               });
@@ -231,7 +227,6 @@ export function getActivities(transaction, isFirstTransaction = false) {
         id,
         hash,
         chainId,
-        metamaskNetworkId,
         eventKey: TRANSACTION_ERRORED_EVENT,
       })
     : historyActivities;

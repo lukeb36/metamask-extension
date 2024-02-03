@@ -1,71 +1,40 @@
-import classnames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
 import { useSelector } from 'react-redux';
-import AssetListItem from '../asset-list-item';
-import { getSelectedAddress } from '../../../selectors';
-import { useI18nContext } from '../../../hooks/useI18nContext';
+import { getTokenList } from '../../../selectors';
 import { useTokenFiatAmount } from '../../../hooks/useTokenFiatAmount';
+import { TokenListItem } from '../../multichain';
+import { isEqualCaseInsensitive } from '../../../../shared/modules/string-utils';
+import { useIsOriginalTokenSymbol } from '../../../hooks/useIsOriginalTokenSymbol';
 
-export default function TokenCell({
-  address,
-  decimals,
-  balanceError,
-  symbol,
-  string,
-  image,
-  onClick,
-  isERC721,
-}) {
-  const userAddress = useSelector(getSelectedAddress);
-  const t = useI18nContext();
-
+export default function TokenCell({ address, image, symbol, string, onClick }) {
+  const tokenList = useSelector(getTokenList);
+  const tokenData = Object.values(tokenList).find(
+    (token) =>
+      token.symbol === symbol && isEqualCaseInsensitive(token.address, address),
+  );
+  const title = tokenData?.name || symbol;
+  const tokenImage = tokenData?.iconUrl || image;
   const formattedFiat = useTokenFiatAmount(address, string, symbol);
-  const warning = balanceError ? (
-    <span>
-      {t('troubleTokenBalances')}
-      <a
-        href={`https://ethplorer.io/address/${userAddress}`}
-        rel="noopener noreferrer"
-        target="_blank"
-        onClick={(event) => event.stopPropagation()}
-        style={{ color: 'var(--color-warning-default)' }}
-      >
-        {t('here')}
-      </a>
-    </span>
-  ) : null;
+  const isOriginalTokenSymbol = useIsOriginalTokenSymbol(address, symbol);
 
   return (
-    <AssetListItem
-      className={classnames('token-cell', {
-        'token-cell--outdated': Boolean(balanceError),
-      })}
-      iconClassName="token-cell__icon"
-      onClick={onClick.bind(null, address)}
-      tokenAddress={address}
-      tokenImage={image}
+    <TokenListItem
+      onClick={() => onClick(address)}
       tokenSymbol={symbol}
-      tokenDecimals={decimals}
-      warning={warning}
+      tokenImage={tokenImage}
       primary={`${string || 0}`}
-      secondary={formattedFiat}
-      isERC721={isERC721}
+      secondary={isOriginalTokenSymbol ? formattedFiat : null}
+      title={title}
+      isOriginalTokenSymbol={isOriginalTokenSymbol}
     />
   );
 }
 
 TokenCell.propTypes = {
   address: PropTypes.string,
-  balanceError: PropTypes.object,
   symbol: PropTypes.string,
-  decimals: PropTypes.number,
   string: PropTypes.string,
-  image: PropTypes.string,
   onClick: PropTypes.func.isRequired,
-  isERC721: PropTypes.bool,
-};
-
-TokenCell.defaultProps = {
-  balanceError: null,
+  image: PropTypes.string,
 };

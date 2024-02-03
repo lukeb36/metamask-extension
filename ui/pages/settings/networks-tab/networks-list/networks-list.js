@@ -3,18 +3,18 @@ import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import { useI18nContext } from '../../../../hooks/useI18nContext';
 import CustomContentSearch from '../custom-content-search';
-import Typography from '../../../../components/ui/typography';
 import {
-  COLORS,
-  TYPOGRAPHY,
+  Color,
+  TextVariant,
 } from '../../../../helpers/constants/design-system';
 import NetworksListItem from '../networks-list-item';
+import { Text } from '../../../../components/component-library';
 
 const NetworksList = ({
   networkIsSelected,
   networksToRender,
   networkDefaultedToProvider,
-  selectedRpcUrl,
+  selectedNetworkConfigurationId,
 }) => {
   const t = useI18nContext();
   const [searchedNetworks, setSearchedNetworks] = useState([]);
@@ -23,12 +23,10 @@ const NetworksList = ({
     searchedNetworks.length === 0 && searchQuery === ''
       ? networksToRender
       : searchedNetworks;
-  const searchedNetworksToRenderThatAreNotTestNetworks = searchedNetworksToRender.filter(
-    (network) => !network.isATestNetwork,
-  );
-  const searchedNetworksToRenderThatAreTestNetworks = searchedNetworksToRender.filter(
-    (network) => network.isATestNetwork,
-  );
+  const searchedNetworksToRenderThatAreNotTestNetworks =
+    searchedNetworksToRender.filter((network) => !network.isATestNetwork);
+  const searchedNetworksToRenderThatAreTestNetworks =
+    searchedNetworksToRender.filter((network) => network.isATestNetwork);
 
   return (
     <div
@@ -58,27 +56,28 @@ const NetworksList = ({
           key={`settings-network-list:${network.rpcUrl}`}
           network={network}
           networkIsSelected={networkIsSelected}
-          selectedRpcUrl={selectedRpcUrl}
+          selectedNetworkConfigurationId={selectedNetworkConfigurationId}
           setSearchQuery={setSearchQuery}
           setSearchedNetworks={setSearchedNetworks}
         />
       ))}
       {searchQuery === '' && (
-        <Typography
-          variant={TYPOGRAPHY.H6}
+        <Text
+          variant={TextVariant.bodySm}
+          as="h6"
           marginTop={4}
-          color={COLORS.TEXT_ALTERNATIVE}
+          color={Color.textAlternative}
           className="networks-tab__networks-list__label"
         >
           {t('testNetworks')}
-        </Typography>
+        </Text>
       )}
       {searchedNetworksToRenderThatAreTestNetworks.map((network, _) => (
         <NetworksListItem
           key={`settings-network-list:${network.rpcUrl}`}
           network={network}
           networkIsSelected={networkIsSelected}
-          selectedRpcUrl={selectedRpcUrl}
+          selectedNetworkConfigurationId={selectedNetworkConfigurationId}
           setSearchQuery={setSearchQuery}
           setSearchedNetworks={setSearchedNetworks}
         />
@@ -91,7 +90,7 @@ NetworksList.propTypes = {
   networkDefaultedToProvider: PropTypes.bool,
   networkIsSelected: PropTypes.bool,
   networksToRender: PropTypes.arrayOf(PropTypes.object).isRequired,
-  selectedRpcUrl: PropTypes.string,
+  selectedNetworkConfigurationId: PropTypes.string,
 };
 
 export default NetworksList;

@@ -1,22 +1,20 @@
-import React, { Component, isValidElement } from 'react';
+import React, { isValidElement } from 'react';
 import PropTypes from 'prop-types';
 import Spinner from '../spinner';
+import { Box } from '../../component-library';
+import {
+  AlignItems,
+  Display,
+  FlexDirection,
+  JustifyContent,
+} from '../../../helpers/constants/design-system';
 
-class LoadingScreen extends Component {
-  static defaultProps = {
-    loadingMessage: null,
-    showLoadingSpinner: true,
-  };
-
-  static propTypes = {
-    loadingMessage: PropTypes.oneOfType([PropTypes.string, PropTypes.element]),
-    showLoadingSpinner: PropTypes.bool,
-    header: PropTypes.element,
-  };
-
-  renderMessage() {
-    const { loadingMessage } = this.props;
-
+const LoadingScreen = ({
+  header,
+  loadingMessage,
+  showLoadingSpinner = true,
+}) => {
+  const renderMessage = () => {
     if (!loadingMessage) {
       return null;
     }
@@ -24,26 +22,37 @@ class LoadingScreen extends Component {
     return isValidElement(loadingMessage) ? (
       loadingMessage
     ) : (
-      <span>{loadingMessage}</span>
+      <span style={{ textAlign: 'center' }}>{loadingMessage}</span>
     );
-  }
+  };
 
-  render() {
-    return (
-      <div className="loading-overlay">
-        {this.props.header}
-        <div className="loading-overlay__container">
-          {this.props.showLoadingSpinner && (
-            <Spinner
-              color="var(--color-warning-default)"
-              className="loading-overlay__spinner"
-            />
-          )}
-          {this.renderMessage()}
-        </div>
-      </div>
-    );
-  }
-}
+  return (
+    <Box className="loading-overlay">
+      {header}
+      <Box className="loading-overlay__container" marginBottom={3}>
+        {showLoadingSpinner && (
+          <Spinner
+            color="var(--color-warning-default)"
+            className="loading-overlay__spinner"
+          />
+        )}
+      </Box>
+      <Box
+        display={Display.Flex}
+        flexDirection={FlexDirection.Row}
+        justifyContent={JustifyContent.center}
+        alignItems={AlignItems.center}
+      >
+        {renderMessage()}
+      </Box>
+    </Box>
+  );
+};
 
-export default LoadingScreen;
+LoadingScreen.propTypes = {
+  header: PropTypes.element,
+  loadingMessage: PropTypes.oneOfType([PropTypes.string, PropTypes.element]),
+  showLoadingSpinner: PropTypes.bool,
+};
+
+export default React.memo(LoadingScreen);

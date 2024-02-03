@@ -1,59 +1,36 @@
 const { strict: assert } = require('assert');
 const {
-  convertToHexValue,
+  defaultGanacheOptions,
   withFixtures,
-  connectDappWithExtensionPopup,
+  openDapp,
+  DAPP_URL,
+  DAPP_ONE_URL,
+  unlockWallet,
+  WINDOW_TITLES,
+  generateGanacheOptions,
 } = require('../helpers');
+const FixtureBuilder = require('../fixture-builder');
 
 describe('Dapp interactions', function () {
-  let windowHandles;
-  let extension;
-  let popup;
-  const ganacheOptions = {
-    accounts: [
-      {
-        secretKey:
-          '0x7C9529A67102755B7E6102D6D950AC5D5863C98713805CEC576B945B15B71EAC',
-        balance: convertToHexValue(25000000000000000000),
-      },
-    ],
-  };
   it('should trigger the add chain confirmation despite MetaMask being locked', async function () {
     await withFixtures(
       {
         dapp: true,
-        fixtures: 'imported-account',
-        ganacheOptions: {
-          ...ganacheOptions,
+        fixtures: new FixtureBuilder().build(),
+        ganacheOptions: generateGanacheOptions({
           concurrent: { port: 8546, chainId: 1338 },
-        },
-        title: this.test.title,
+        }),
+        title: this.test.fullTitle(),
       },
       async ({ driver }) => {
         await driver.navigate();
-        await driver.fill('#password', 'correct horse battery staple');
-        await driver.press('#password', driver.Key.ENTER);
-
-        // Connect to Dapp0
-        await connectDappWithExtensionPopup(driver, 0);
-        windowHandles = await driver.getAllWindowHandles();
-        extension = windowHandles[0];
-
-        // Lock Account
-        await driver.switchToWindow(extension);
-        await driver.clickElement('.account-menu__icon');
-        await driver.clickElement({ text: 'Lock', tag: 'button' });
+        await openDapp(driver);
 
         // Trigger Notification
-        await driver.switchToWindowWithTitle('E2E Test Dapp', windowHandles);
         await driver.clickElement('#addEthereumChain');
         await driver.waitUntilXWindowHandles(3);
-        await driver.switchToWindowWithTitle(
-          'MetaMask Notification',
-          windowHandles,
-        );
-        await driver.fill('#password', 'correct horse battery staple');
-        await driver.press('#password', driver.Key.ENTER);
+        await driver.switchToWindowWithTitle(WINDOW_TITLES.Dialog);
+        await unlockWallet(driver);
         const notification = await driver.isElementPresent({
           text: 'Allow this site to add a network?',
           tag: 'h3',
@@ -68,58 +45,54 @@ describe('Dapp interactions', function () {
     await withFixtures(
       {
         dapp: true,
-        fixtures: 'imported-account',
-        ganacheOptions,
+        fixtures: new FixtureBuilder()
+          .withPermissionControllerConnectedToTestDapp()
+          .build(),
+        ganacheOptions: defaultGanacheOptions,
         dappOptions: { numberOfDapps: 2 },
-        title: this.test.title,
+        title: this.test.fullTitle(),
       },
       async ({ driver }) => {
         await driver.navigate();
-        await driver.fill('#password', 'correct horse battery staple');
-        await driver.press('#password', driver.Key.ENTER);
 
-        // Connect to Dapp0
-        await connectDappWithExtensionPopup(driver, 0);
-        windowHandles = await driver.getAllWindowHandles();
-        extension = windowHandles[0];
-
-        // Lock Account
-        await driver.switchToWindow(extension);
-        await driver.clickElement('.account-menu__icon');
-        await driver.clickElement({ text: 'Lock', tag: 'button' });
-
-        // Connect to Dapp1
-        await driver.openNewPage('http://127.0.0.1:8081/');
+        // Connect to 2nd dapp => DAPP_ONE
+        await openDapp(driver, null, DAPP_ONE_URL);
         await driver.clickElement({ text: 'Connect', tag: 'button' });
+        await driver.waitUntilXWindowHandles(3);
 
-        windowHandles = await driver.getAllWindowHandles();
+        await driver.switchToWindowWithTitle(WINDOW_TITLES.Dialog);
 
-        popup = await driver.switchToWindowWithTitle(
-          'MetaMask Notification',
-          windowHandles,
-        );
+        await unlockWallet(driver, {
+          navigate: false,
+        });
 
-        await driver.switchToWindow(popup);
-        await driver.fill('#password', 'correct horse battery staple');
-        await driver.press('#password', driver.Key.ENTER);
         await driver.clickElement({ text: 'Next', tag: 'button' });
         await driver.clickElement({ text: 'Connect', tag: 'button' });
-
+        await driver.switchToWindowWithTitle(WINDOW_TITLES.TestDApp);
+        await driver.waitForSelector({
+          css: '#accounts',
+          text: '0x5cfe73b6021e818b776b421b1c4db2474086a7e1',
+        });
         // Assert Connection
-        await driver.switchToWindow(extension);
-        await driver.fill('#password', 'correct horse battery staple');
-        await driver.press('#password', driver.Key.ENTER);
+        await driver.switchToWindowWithTitle(
+          WINDOW_TITLES.ExtensionInFullScreenView,
+        );
+        await unlockWallet(driver, {
+          navigate: false,
+        });
         await driver.clickElement(
           '[data-testid ="account-options-menu-button"]',
         );
-        await driver.clickElement({ text: 'Connected sites', tag: 'span' });
+
+        await driver.clickElement({ text: 'Connected sites', tag: 'div' });
+
         const connectedDapp1 = await driver.isElementPresent({
-          text: 'http://127.0.0.1:8080',
-          tag: 'span',
+          text: DAPP_URL,
+          tag: 'bdi',
         });
         const connectedDapp2 = await driver.isElementPresent({
-          text: 'http://127.0.0.1:8081',
-          tag: 'span',
+          text: DAPP_ONE_URL,
+          tag: 'bdi',
         });
 
         assert.ok(connectedDapp1, 'Account not connected to Dapp1');

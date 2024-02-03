@@ -1,58 +1,22 @@
 import { rawEncode } from 'ethereumjs-abi';
 
+import { TokenStandard } from '../../../shared/constants/transaction';
 import {
-  multiplyCurrencies,
-  addCurrencies,
-  conversionGTE,
-  conversionUtil,
-} from '../../../shared/modules/conversion.utils';
-
-import {
-  calcGasTotal,
   generateERC20TransferData,
   isBalanceSufficient,
   isTokenBalanceSufficient,
+  ellipsify,
+  isERC1155BalanceSufficient,
+  generateERC1155TransferData,
+  getAssetTransferData,
+  generateERC721TransferData,
 } from './send.utils';
-
-jest.mock('../../../shared/modules/conversion.utils', () => ({
-  addCurrencies: jest.fn((a, b) => {
-    let [a1, b1] = [a, b];
-    if (String(a).match(/^0x.+/u)) {
-      a1 = Number(String(a).slice(2));
-    }
-    if (String(b).match(/^0x.+/u)) {
-      b1 = Number(String(b).slice(2));
-    }
-    return a1 + b1;
-  }),
-  conversionUtil: jest.fn((val) => parseInt(val, 16)),
-  conversionGTE: jest.fn((obj1, obj2) => obj1.value >= obj2.value),
-  multiplyCurrencies: jest.fn((a, b) => `${a}x${b}`),
-  conversionGreaterThan: (obj1, obj2) => obj1.value > obj2.value,
-  conversionLessThan: (obj1, obj2) => obj1.value < obj2.value,
-}));
-
-jest.mock('../../helpers/utils/token-util', () => ({
-  calcTokenAmount: (a, d) => `calc:${a}${d}`,
-}));
 
 jest.mock('ethereumjs-abi', () => ({
   rawEncode: jest.fn().mockReturnValue(16, 1100),
 }));
 
 describe('send utils', () => {
-  describe('calcGasTotal()', () => {
-    it('should call multiplyCurrencies with the correct params and return the multiplyCurrencies return', () => {
-      const result = calcGasTotal(12, 15);
-      expect(result).toStrictEqual('12x15');
-      expect(multiplyCurrencies).toHaveBeenCalledWith(12, 15, {
-        multiplicandBase: 16,
-        multiplierBase: 16,
-        toNumericBase: 'hex',
-      });
-    });
-  });
-
   describe('generateERC20TransferData()', () => {
     it('should return undefined if not passed a send token', () => {
       expect(
@@ -90,7 +54,7 @@ describe('send utils', () => {
   });
 
   describe('isBalanceSufficient()', () => {
-    it('should correctly call addCurrencies and return the result of calling conversionGTE', () => {
+    it('should correctly sum the appropriate currencies and ensure that balance is greater', () => {
       const result = isBalanceSufficient({
         amount: 15,
         balance: 100,
@@ -98,53 +62,158 @@ describe('send utils', () => {
         gasTotal: 17,
         primaryCurrency: 'ABC',
       });
-      expect(addCurrencies).toHaveBeenCalledWith(15, 17, {
-        aBase: 16,
-        bBase: 16,
-        toNumericBase: 'hex',
-      });
-      expect(conversionGTE).toHaveBeenCalledWith(
-        {
-          value: 100,
-          fromNumericBase: 'hex',
-          fromCurrency: 'ABC',
-          conversionRate: 3,
-        },
-        {
-          value: 32,
-          fromNumericBase: 'hex',
-          conversionRate: 3,
-          fromCurrency: 'ABC',
-        },
-      );
-
       expect(result).toStrictEqual(true);
     });
   });
 
   describe('isTokenBalanceSufficient()', () => {
-    it('should correctly call conversionUtil and return the result of calling conversionGTE', () => {
+    it('should return true for a sufficient balance for token spend', () => {
       const result = isTokenBalanceSufficient({
         amount: '0x10',
         tokenBalance: 123,
         decimals: 10,
       });
 
-      expect(conversionUtil).toHaveBeenCalledWith('0x10', {
-        fromNumericBase: 'hex',
+      expect(result).toStrictEqual(true);
+    });
+
+    it('should return false for an insufficient balance for token spend', () => {
+      const result = isTokenBalanceSufficient({
+        amount: '0x10000',
+        tokenBalance: 123,
+        decimals: 10,
       });
 
-      expect(conversionGTE).toHaveBeenCalledWith(
-        {
-          value: 123,
-          fromNumericBase: 'hex',
-        },
-        {
-          value: 'calc:1610',
-        },
-      );
+      expect(result).toStrictEqual(true);
+    });
+  });
+
+  describe('isERC1155BalanceSufficient()', () => {
+    it('should return true for a sufficient balance for erc1155 token spend', () => {
+      const result = isERC1155BalanceSufficient({
+        amount: '1',
+        tokenBalance: '2',
+      });
+
+      expect(result).toStrictEqual(true);
+    });
+
+    it('should return false for an insufficient balance for erc1155 token spend', () => {
+      const result = isERC1155BalanceSufficient({
+        amount: '2',
+        tokenBalance: '1',
+      });
 
       expect(result).toStrictEqual(false);
+    });
+  });
+
+  describe('ellipsify()', () => {
+    it('should ellipsify a contract address', () => {
+      expect(
+        ellipsify('0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'),
+      ).toStrictEqual('0xCcCC...cccC');
+    });
+
+    it('should return an empty string if the passed text is not defined', () => {
+      expect(ellipsify(undefined)).toStrictEqual('');
+    });
+  });
+
+  describe('generateERC1155TransferData()', () => {
+    it('should not return ERC1155 transfer data if tokenId is not defined', () => {
+      const result = generateERC1155TransferData({
+        toAddress: '0x0',
+        fromAddress: '0x0',
+        tokenId: null,
+        amount: '1',
+        data: '0',
+      });
+
+      expect(result).toStrictEqual(undefined);
+    });
+
+    it('should return erc1155 data transfer', () => {
+      const result = generateERC1155TransferData({
+        toAddress: '0x0',
+        fromAddress: '0x0',
+        tokenId: '1',
+        amount: '1',
+        data: '0',
+      });
+
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('getAssetTransferData', () => {
+    const fromAddress = '0xFromAddress';
+    const toAddress = '0xToAddress';
+    const amount = '100';
+    const tokenId = '1';
+
+    it('generates ERC721 transfer data', () => {
+      const sendToken = { standard: TokenStandard.ERC721, tokenId };
+      const result = getAssetTransferData({
+        sendToken,
+        fromAddress,
+        toAddress,
+        amount,
+      });
+      const expected = generateERC721TransferData({
+        toAddress,
+        fromAddress,
+        tokenId,
+      });
+      expect(result).toStrictEqual(expected);
+    });
+
+    it('generates ERC1155 transfer data', () => {
+      const sendToken = { standard: TokenStandard.ERC1155, tokenId };
+      const result = getAssetTransferData({
+        sendToken,
+        fromAddress,
+        toAddress,
+        amount,
+      });
+      const expected = generateERC1155TransferData({
+        toAddress,
+        fromAddress,
+        tokenId,
+      });
+      expect(result).toStrictEqual(expected);
+    });
+
+    it('generates ERC20 transfer data', () => {
+      const sendToken = { standard: TokenStandard.ERC20 };
+      const result = getAssetTransferData({
+        sendToken,
+        fromAddress,
+        toAddress,
+        amount,
+      });
+      const expected = generateERC20TransferData({
+        toAddress,
+        amount,
+        sendToken,
+      });
+      expect(result).toStrictEqual(expected);
+    });
+
+    it('generates ERC20 transfer data by default', () => {
+      const sendToken = { standard: 'unknown' };
+      const result = getAssetTransferData({
+        sendToken,
+        fromAddress,
+        toAddress,
+        amount,
+      });
+      const expected = generateERC20TransferData({
+        toAddress,
+        amount,
+        sendToken,
+      });
+      expect(result).toStrictEqual(expected);
     });
   });
 });

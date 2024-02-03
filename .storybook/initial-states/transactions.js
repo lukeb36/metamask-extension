@@ -24,10 +24,9 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     id: 643368596521636,
     time: 1653527035634,
     status: 'submitted',
-    metamaskNetworkId: '4',
     originalGasEstimate: '5208',
     userEditedGasLimit: false,
-    chainId: '0x4',
+    chainId: '0x5',
     loadingDefaults: false,
     dappSuggestedGasFees: null,
     sendFlowHistory: [],
@@ -50,10 +49,9 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         id: 643368596521636,
         time: 1653527035634,
         status: 'approved',
-        metamaskNetworkId: '4',
         originalGasEstimate: '5208',
         userEditedGasLimit: false,
-        chainId: '0x4',
+        chainId: '0x5',
         loadingDefaults: false,
         dappSuggestedGasFees: null,
         sendFlowHistory: [],
@@ -72,37 +70,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         },
         type: 'cancel',
       },
-      [
-        {
-          op: 'add',
-          path: '/nonceDetails',
-          value: {
-            params: {
-              highestLocallyConfirmed: 81,
-              highestSuggested: 81,
-              nextNetworkNonce: 81,
-            },
-            local: {
-              name: 'local',
-              nonce: 83,
-              details: {
-                startPoint: 81,
-                highest: 83,
-              },
-            },
-            network: {
-              name: 'network',
-              nonce: 81,
-              details: {
-                blockNumber: '0xa3e3ac',
-                baseCount: 81,
-              },
-            },
-          },
-          note: 'transactions#approveTransaction',
-          timestamp: 1653527035723,
-        },
-      ],
       [
         {
           op: 'add',
@@ -172,29 +139,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         },
       ],
     ],
-    nonceDetails: {
-      params: {
-        highestLocallyConfirmed: 81,
-        highestSuggested: 81,
-        nextNetworkNonce: 81,
-      },
-      local: {
-        name: 'local',
-        nonce: 83,
-        details: {
-          startPoint: 81,
-          highest: 83,
-        },
-      },
-      network: {
-        name: 'network',
-        nonce: 81,
-        details: {
-          blockNumber: '0xa3e3ac',
-          baseCount: 81,
-        },
-      },
-    },
     r: '0xb66eff07d9061c42e47ccf5f6a52b6626ef4d5b10e50d8aa6b8f20ae645fe347',
     s: '0x3a2da8d56beff82a2d59e807f7d578f0c3b4b99cd6d3735c72c133d06fe02a9d',
     v: '0x2b',
@@ -204,7 +148,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     submittedTime: 1653527035924,
   },
   [MOCK_TX_TYPE.CONTRACT_INTERACTION]: {
-    chainId: '0x4',
+    chainId: '0x5',
     dappSuggestedGasFees: {
       gas: '0x118f4',
       maxFeePerGas: '0x9502f91a',
@@ -212,7 +156,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     },
     id: 7694052085150913,
     loadingDefaults: true,
-    metamaskNetworkId: '4',
     origin: 'https://remix.ethereum.org',
     originalGasEstimate: '0x118f4',
     sendFlowHistory: [],
@@ -235,7 +178,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
   [MOCK_TX_TYPE.DEPLOY_CONTRACT]: {
     blockNumber: '6195527',
     id: 4243712234858468,
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     status: 'confirmed',
     time: 1585088013000,
     txParams: {
@@ -292,7 +235,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
   [MOCK_TX_TYPE.INCOMING]: {
     blockNumber: '6477257',
     id: 4243712234858505,
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     status: 'confirmed',
     time: 1589314295000,
     txParams: {
@@ -346,10 +289,10 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     id: 3938342322880462,
     time: 1653459456297,
     status: 'failed',
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     originalGasEstimate: '14609',
     userEditedGasLimit: false,
-    chainId: '0x4',
+    chainId: '0x5',
     loadingDefaults: false,
     dappSuggestedGasFees: null,
     sendFlowHistory: [],
@@ -376,10 +319,9 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         id: 3938342322880462,
         time: 1653459456297,
         status: 'approved',
-        metamaskNetworkId: '4',
         originalGasEstimate: '14609',
         userEditedGasLimit: false,
-        chainId: '0x4',
+        chainId: '0x5',
         loadingDefaults: false,
         dappSuggestedGasFees: null,
         sendFlowHistory: [],
@@ -402,37 +344,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         type: 'retry',
         estimatedBaseFee: 'd',
       },
-      [
-        {
-          op: 'add',
-          path: '/nonceDetails',
-          value: {
-            params: {
-              highestLocallyConfirmed: 7,
-              highestSuggested: 7,
-              nextNetworkNonce: 7,
-            },
-            local: {
-              name: 'local',
-              nonce: 10,
-              details: {
-                startPoint: 7,
-                highest: 10,
-              },
-            },
-            network: {
-              name: 'network',
-              nonce: 7,
-              details: {
-                blockNumber: '0xa3d235',
-                baseCount: 7,
-              },
-            },
-          },
-          note: 'transactions#approveTransaction',
-          timestamp: 1653459456415,
-        },
-      ],
       [
         {
           op: 'add',
@@ -497,29 +408,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         },
       ],
     ],
-    nonceDetails: {
-      params: {
-        highestLocallyConfirmed: 7,
-        highestSuggested: 7,
-        nextNetworkNonce: 7,
-      },
-      local: {
-        name: 'local',
-        nonce: 10,
-        details: {
-          startPoint: 7,
-          highest: 10,
-        },
-      },
-      network: {
-        name: 'network',
-        nonce: 7,
-        details: {
-          blockNumber: '0xa3d235',
-          baseCount: 7,
-        },
-      },
-    },
     r: '0xde2e3131fb55b1edd182de128453521c86eed588f92058b61b3ce56cdfb33a26',
     s: '0x64ee1eef8d0fa1b35e122658554d16645366e8977253fc1c47d030f28736409b',
     v: '0x00',
@@ -589,7 +477,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     id: 4243712234858512,
     time: 1589314601567,
     status: 'confirmed',
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     loadingDefaults: false,
     txParams: {
       from: '0xabca64466f257793eaa52fcfff5066894b76a149',
@@ -605,7 +493,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
   [MOCK_TX_TYPE.SMART]: {
     blockNumber: '6195527',
     id: 4243712234858468,
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     status: 'confirmed',
     time: 1585088013000,
     txParams: {
@@ -625,7 +513,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
   [MOCK_TX_TYPE.SWAP]: {
     blockNumber: '6195527',
     id: 4243712234858467,
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     status: 'confirmed',
     time: 1585088013000,
     txParams: {
@@ -644,7 +532,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
   [MOCK_TX_TYPE.SWAP_APPROVAL]: {
     blockNumber: '6195527',
     id: 4243712234858467,
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     status: 'confirmed',
     time: 1585088013000,
     txParams: {
@@ -664,10 +552,9 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     id: 5177046356058729,
     time: 1653457101080,
     status: 'submitted',
-    metamaskNetworkId: '4',
     originalGasEstimate: '0xb427',
     userEditedGasLimit: false,
-    chainId: '0x4',
+    chainId: '0x5',
     loadingDefaults: false,
     dappSuggestedGasFees: {
       gasPrice: '0x4a817c800',
@@ -692,10 +579,10 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         id: 5177046356058729,
         time: 1653457101080,
         status: 'unapproved',
-        metamaskNetworkId: '4',
+        chainId: '0x5',
         originalGasEstimate: '0xb427',
         userEditedGasLimit: false,
-        chainId: '0x4',
+        chainId: '0x5',
         loadingDefaults: true,
         dappSuggestedGasFees: {
           gasPrice: '0x4a817c800',
@@ -778,33 +665,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
           note: 'transactions#approveTransaction',
           timestamp: 1653457117294,
         },
-        {
-          op: 'add',
-          path: '/nonceDetails',
-          value: {
-            params: {
-              highestLocallyConfirmed: 5,
-              highestSuggested: 5,
-              nextNetworkNonce: 5,
-            },
-            local: {
-              name: 'local',
-              nonce: 5,
-              details: {
-                startPoint: 5,
-                highest: 5,
-              },
-            },
-            network: {
-              name: 'network',
-              nonce: 5,
-              details: {
-                blockNumber: '0xa3d19b',
-                baseCount: 5,
-              },
-            },
-          },
-        },
       ],
       [
         {
@@ -883,29 +743,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
       maxPriorityFeePerGas: '0x4a817c800',
     },
     estimatedBaseFee: '14',
-    nonceDetails: {
-      params: {
-        highestLocallyConfirmed: 5,
-        highestSuggested: 5,
-        nextNetworkNonce: 5,
-      },
-      local: {
-        name: 'local',
-        nonce: 5,
-        details: {
-          startPoint: 5,
-          highest: 5,
-        },
-      },
-      network: {
-        name: 'network',
-        nonce: 5,
-        details: {
-          blockNumber: '0xa3d19b',
-          baseCount: 5,
-        },
-      },
-    },
     r: '0xfdd2cb46203b5e7bba99cc56a37da3e5e3f36163a5bd9c51cddfd8d7028f5dd0',
     s: '0x54c35cfa10b3350a3fd3a0e7b4aeb0b603d528c07a8cfdf4a78505d9864edef4',
     v: '0x00',
@@ -918,10 +755,10 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     id: 1441203963845330,
     time: 1652206763566,
     status: 'confirmed',
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     originalGasEstimate: '0x118e0',
     userEditedGasLimit: false,
-    chainId: '0x4',
+    chainId: '0x5',
     loadingDefaults: false,
     dappSuggestedGasFees: {
       maxPriorityFeePerGas: '0x3B9ACA00',
@@ -939,7 +776,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
       maxFeePerGas: '0x7be830aec',
       maxPriorityFeePerGas: '0x3B9ACA00',
     },
-    origin: 'https://rinkeby.etherscan.io',
+    origin: 'https://goerli.etherscan.io',
     type: 'safetransferfrom',
     userFeeLevel: 'dappSuggested',
     defaultGasEstimates: {
@@ -949,29 +786,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
       maxPriorityFeePerGas: '0x3B9ACA00',
     },
     estimatedBaseFee: '3ba182755',
-    nonceDetails: {
-      params: {
-        highestLocallyConfirmed: 87,
-        highestSuggested: 87,
-        nextNetworkNonce: 87,
-      },
-      local: {
-        name: 'local',
-        nonce: 87,
-        details: {
-          startPoint: 87,
-          highest: 87,
-        },
-      },
-      network: {
-        name: 'network',
-        nonce: 87,
-        details: {
-          blockNumber: '0xa28e38',
-          baseCount: 87,
-        },
-      },
-    },
     r: '0xd13310569a8d5876e37788183034bfe4bc3b49c0663c5fd9b2bf13adf9b4791c',
     s: '0x7a83d8840e7edcdf4fdedfd2bc1ce19775e54fd17f29ede5165591a1cf3febea',
     v: '0x00',
@@ -1042,10 +856,10 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     id: 5177046356058725,
     time: 1653457077370,
     status: 'confirmed',
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     originalGasEstimate: '0xea60',
     userEditedGasLimit: false,
-    chainId: '0x4',
+    chainId: '0x5',
     loadingDefaults: false,
     dappSuggestedGasFees: {
       gasPrice: '0x4a817c800',
@@ -1055,7 +869,7 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     txParams: {
       from: '0xabc539a7d5c43940af498008a7c8f3abb35c3725',
       to: '0xefg60bbf4ba1de43f3b4983a539feebfbd5fd976',
-      nonce: '0x4',
+      nonce: '0x5',
       value: '0x0',
       data:
         '0xa9059cbb0000000000000000000000002f318c334780961fb129d2a6c30d0763d9a5c9700000000000000000000000000000000000000000000000000000000000003a98',
@@ -1070,10 +884,10 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         id: 5177046356058725,
         time: 1653457077370,
         status: 'unapproved',
-        metamaskNetworkId: '4',
+        chainId: '0x5',
         originalGasEstimate: '0xea60',
         userEditedGasLimit: false,
-        chainId: '0x4',
+        chainId: '0x5',
         loadingDefaults: true,
         dappSuggestedGasFees: {
           gasPrice: '0x4a817c800',
@@ -1152,36 +966,9 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         {
           op: 'add',
           path: '/txParams/nonce',
-          value: '0x4',
+          value: '0x5',
           note: 'transactions#approveTransaction',
           timestamp: 1653457091939,
-        },
-        {
-          op: 'add',
-          path: '/nonceDetails',
-          value: {
-            params: {
-              highestLocallyConfirmed: 4,
-              highestSuggested: 4,
-              nextNetworkNonce: 4,
-            },
-            local: {
-              name: 'local',
-              nonce: 4,
-              details: {
-                startPoint: 4,
-                highest: 4,
-              },
-            },
-            network: {
-              name: 'network',
-              nonce: 4,
-              details: {
-                blockNumber: '0xa3d198',
-                baseCount: 4,
-              },
-            },
-          },
         },
       ],
       [
@@ -1370,29 +1157,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
       maxPriorityFeePerGas: '0x4a817c800',
     },
     estimatedBaseFee: '16',
-    nonceDetails: {
-      params: {
-        highestLocallyConfirmed: 4,
-        highestSuggested: 4,
-        nextNetworkNonce: 4,
-      },
-      local: {
-        name: 'local',
-        nonce: 4,
-        details: {
-          startPoint: 4,
-          highest: 4,
-        },
-      },
-      network: {
-        name: 'network',
-        nonce: 4,
-        details: {
-          blockNumber: '0xa3d198',
-          baseCount: 4,
-        },
-      },
-    },
     r: '0xb0f36e4392f9d302351789aef355a2e95b979bcdd99d19026c533152563d3bce',
     s: '0x08e59de373e65c9c54e6a8052585461e81409d33178464f9b72f4cc36ac75d40',
     v: '0x01',
@@ -1446,15 +1210,15 @@ export const MOCK_TRANSACTION_BY_TYPE = {
     id: 5177046356058754,
     time: 1653457323504,
     status: 'confirmed',
-    metamaskNetworkId: '4',
+    chainId: '0x5',
     originalGasEstimate: '0x10896',
     userEditedGasLimit: false,
-    chainId: '0x4',
+    chainId: '0x5',
     loadingDefaults: false,
     dappSuggestedGasFees: null,
     sendFlowHistory: [
       {
-        entry: 'sendFlow - user set asset type to COLLECTIBLE',
+        entry: 'sendFlow - user set asset type to NFT',
         timestamp: 1653457317999,
       },
       {
@@ -1496,15 +1260,15 @@ export const MOCK_TRANSACTION_BY_TYPE = {
         id: 5177046356058754,
         time: 1653457323504,
         status: 'unapproved',
-        metamaskNetworkId: '4',
+        chainId: '0x5',
         originalGasEstimate: '0x10896',
         userEditedGasLimit: false,
-        chainId: '0x4',
+        chainId: '0x5',
         loadingDefaults: true,
         dappSuggestedGasFees: null,
         sendFlowHistory: [
           {
-            entry: 'sendFlow - user set asset type to COLLECTIBLE',
+            entry: 'sendFlow - user set asset type to NFT',
             timestamp: 1653457317999,
           },
           {
@@ -1590,33 +1354,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
           value: '0x6',
           note: 'transactions#approveTransaction',
           timestamp: 1653457330354,
-        },
-        {
-          op: 'add',
-          path: '/nonceDetails',
-          value: {
-            params: {
-              highestLocallyConfirmed: 6,
-              highestSuggested: 6,
-              nextNetworkNonce: 6,
-            },
-            local: {
-              name: 'local',
-              nonce: 6,
-              details: {
-                startPoint: 6,
-                highest: 6,
-              },
-            },
-            network: {
-              name: 'network',
-              nonce: 6,
-              details: {
-                blockNumber: '0xa3d1a8',
-                baseCount: 6,
-              },
-            },
-          },
         },
       ],
       [
@@ -1829,29 +1566,6 @@ export const MOCK_TRANSACTION_BY_TYPE = {
       maxPriorityFeePerGas: '0x59682f00',
     },
     estimatedBaseFee: 'd',
-    nonceDetails: {
-      params: {
-        highestLocallyConfirmed: 6,
-        highestSuggested: 6,
-        nextNetworkNonce: 6,
-      },
-      local: {
-        name: 'local',
-        nonce: 6,
-        details: {
-          startPoint: 6,
-          highest: 6,
-        },
-      },
-      network: {
-        name: 'network',
-        nonce: 6,
-        details: {
-          blockNumber: '0xa3d1a8',
-          baseCount: 6,
-        },
-      },
-    },
     r: '0x58294750acbe46cb0dd15ef615a244be49af61f0d799cce68bbbd3d4e7c75cdc',
     s: '0x3993c38f6e168065d9b20a0b4254697d47db114f57243f56c22f228c7a173f9c',
     v: '0x01',

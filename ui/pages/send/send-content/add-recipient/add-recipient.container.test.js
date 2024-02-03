@@ -12,16 +12,19 @@ jest.mock('react-redux', () => ({
 jest.mock('../../../../selectors', () => ({
   getAddressBook: (s) => [{ name: `mockAddressBook:${s}` }],
   getAddressBookEntry: (s) => `mockAddressBookEntry:${s}`,
-  getMetaMaskAccountsOrdered: () => [
-    { name: `account1:mockState` },
-    { name: `account2:mockState` },
+  getInternalAccountsSortedByKeyring: () => [
+    { address: 'address-1', metadata: { name: `account1:mockState` } },
+    { address: 'address-2', metadata: { name: `account2:mockState` } },
   ],
+  getCurrentNetworkTransactions: (s) => `getCurrentNetworkTransactions:${s}`,
 }));
 
-jest.mock('../../../../ducks/ens', () => ({
-  getEnsResolution: (s) => `mockSendEnsResolution:${s}`,
-  getEnsError: (s) => `mockSendEnsResolutionError:${s}`,
-  getEnsWarning: (s) => `mockSendEnsResolutionWarning:${s}`,
+jest.mock('../../../../ducks/domains', () => ({
+  getDomainResolution: (s) => `mockSendDomainResolution:${s}`,
+  getDomainType: (s) => `mockSendDomainType:${s}`,
+  getResolvingSnap: (s) => `mockSendResolvingSnap:${s}`,
+  getDomainError: (s) => `mockSendDomainResolutionError:${s}`,
+  getDomainWarning: (s) => `mockSendDomainResolutionWarning:${s}`,
   useMyAccountsForRecipientSearch: (s) =>
     `useMyAccountsForRecipientSearch:${s}`,
 }));
@@ -34,13 +37,10 @@ jest.mock('../../../../ducks/send', () => ({
     `mockUseMyAccountsForRecipientSearch:${s}`,
   useContactListForRecipientSearch: (s) =>
     `mockUseContactListForRecipientSearch:${s}`,
-  getIsUsingMyAccountForRecipientSearch: (s) =>
-    `mockGetIsUsingMyAccountForRecipientSearch:${s}`,
   getRecipientUserInput: (s) => `mockRecipientUserInput:${s}`,
   getRecipient: (s) => `mockRecipient:${s}`,
 }));
-
-require('./add-recipient.container.js');
+require('./add-recipient.container');
 
 describe('add-recipient container', () => {
   describe('mapStateToProps()', () => {
@@ -49,18 +49,18 @@ describe('add-recipient container', () => {
         addressBook: [{ name: 'mockAddressBook:mockState' }],
         addressBookEntryName: undefined,
         contacts: [{ name: 'mockAddressBook:mockState' }],
-        ensResolution: 'mockSendEnsResolution:mockState',
-        ensError: 'mockSendEnsResolutionError:mockState',
-        ensWarning: 'mockSendEnsResolutionWarning:mockState',
+        domainResolution: 'mockSendDomainResolution:mockState',
+        domainError: 'mockSendDomainResolutionError:mockState',
+        domainWarning: 'mockSendDomainResolutionWarning:mockState',
         nonContacts: [],
         ownedAccounts: [
-          { name: 'account1:mockState' },
-          { name: 'account2:mockState' },
+          { address: 'address-1', name: 'account1:mockState' },
+          { address: 'address-2', name: 'account2:mockState' },
         ],
-        isUsingMyAccountsForRecipientSearch:
-          'mockGetIsUsingMyAccountForRecipientSearch:mockState',
         userInput: 'mockRecipientUserInput:mockState',
         recipient: 'mockRecipient:mockState',
+        resolvingSnap: 'mockSendResolvingSnap:mockState',
+        domainType: 'mockSendDomainType:mockState',
       });
     });
   });

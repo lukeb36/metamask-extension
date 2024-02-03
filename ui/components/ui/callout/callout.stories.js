@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import {
-  COLORS,
+  BorderColor,
   SEVERITIES,
-  TYPOGRAPHY,
+  TextVariant,
 } from '../../../helpers/constants/design-system';
-import Box from '../box';
-import Typography from '../typography';
+
+import { Text, Box } from '../../component-library';
 import Callout from './callout';
 
 export default {
   title: 'Components/UI/Callout',
-  id: __filename,
+
   argTypes: {
     severity: {
       control: {
@@ -22,12 +22,14 @@ export default {
 };
 
 export const PersistentCallout = (args) => (
-  <Box borderColor={COLORS.BORDER_DEFAULT} padding={[8, 0, 0, 0]}>
+  <Box borderColor={BorderColor.borderDefault} paddingTop={8}>
     <Box margin={2}>
-      <Typography variant={TYPOGRAPHY.H4}>This is your private key:</Typography>
-      <Typography variant={TYPOGRAPHY.H6}>
+      <Text variant={TextVariant.headingSm} as="h4">
+        This is your private key:
+      </Text>
+      <Text variant={TextVariant.bodySm} as="h6">
         some seed words that are super important and probably deserve a callout
-      </Typography>
+      </Text>
     </Box>
     <Callout {...args}>Always back up your private key!</Callout>
   </Box>
@@ -36,15 +38,15 @@ export const PersistentCallout = (args) => (
 export const DismissibleCallout = (args) => {
   const [dismissed, setDismissed] = useState(false);
   return (
-    <Box borderColor={COLORS.BORDER_DEFAULT} padding={[8, 0, 0, 0]}>
+    <Box borderColor={BorderColor.borderDefault} paddingTop={8}>
       <Box margin={2}>
-        <Typography variant={TYPOGRAPHY.H4}>
+        <Text variant={TextVariant.headingSm} as="h4">
           This is your private key:
-        </Typography>
-        <Typography variant={TYPOGRAPHY.H6}>
+        </Text>
+        <Text variant={TextVariant.bodySm} as="h6">
           some seed words that are super important and probably deserve a
           callout
-        </Typography>
+        </Text>
       </Box>
       {!dismissed && (
         <Callout {...args} dismiss={() => setDismissed(true)}>
@@ -81,15 +83,15 @@ export const MultipleDismissibleCallouts = () => {
   };
 
   return (
-    <Box borderColor={COLORS.BORDER_DEFAULT} padding={[8, 0, 0, 0]}>
+    <Box borderColor={BorderColor.borderDefault} paddingTop={8}>
       <Box margin={2}>
-        <Typography variant={TYPOGRAPHY.H4}>
+        <Text variant={TextVariant.headingSm} as="h4">
           This is your private key:
-        </Typography>
-        <Typography variant={TYPOGRAPHY.H6}>
+        </Text>
+        <Text variant={TextVariant.bodySm} as="h6">
           some seed words that are super important and probably deserve a
           callout
-        </Typography>
+        </Text>
       </Box>
       {Object.entries(calloutState)
         .filter(([_, callout]) => callout.dismissed === false)

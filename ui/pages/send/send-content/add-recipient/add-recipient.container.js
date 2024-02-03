@@ -2,7 +2,8 @@ import { connect } from 'react-redux';
 import {
   getAddressBook,
   getAddressBookEntry,
-  getMetaMaskAccountsOrdered,
+  getInternalAccountsSortedByKeyring,
+  getCurrentNetworkTransactions,
 } from '../../../../selectors';
 
 import {
@@ -10,47 +11,77 @@ import {
   updateRecipientUserInput,
   useMyAccountsForRecipientSearch,
   useContactListForRecipientSearch,
-  getIsUsingMyAccountForRecipientSearch,
   getRecipientUserInput,
   getRecipient,
   addHistoryEntry,
 } from '../../../../ducks/send';
 import {
-  getEnsResolution,
-  getEnsError,
-  getEnsWarning,
-} from '../../../../ducks/ens';
+  getDomainResolution,
+  getDomainError,
+  getDomainWarning,
+  ///: BEGIN:ONLY_INCLUDE_IF(build-flask)
+  getResolvingSnap,
+  getDomainType,
+  ///: END:ONLY_INCLUDE_IF
+} from '../../../../ducks/domains';
 import AddRecipient from './add-recipient.component';
 
 export default connect(mapStateToProps, mapDispatchToProps)(AddRecipient);
 
 function mapStateToProps(state) {
-  const ensResolution = getEnsResolution(state);
-
+  const domainResolution = getDomainResolution(state);
+  ///: BEGIN:ONLY_INCLUDE_IF(build-flask)
+  const resolvingSnap = getResolvingSnap(state);
+  const domainType = getDomainType(state);
+  ///: END:ONLY_INCLUDE_IF
   let addressBookEntryName = '';
-  if (ensResolution) {
-    const addressBookEntry = getAddressBookEntry(state, ensResolution) || {};
+  if (domainResolution) {
+    const addressBookEntry = getAddressBookEntry(state, domainResolution) || {};
     addressBookEntryName = addressBookEntry.name;
   }
 
   const addressBook = getAddressBook(state);
 
-  const ownedAccounts = getMetaMaskAccountsOrdered(state);
+  const txList = [...getCurrentNetworkTransactions(state)].reverse();
+
+  const nonContacts = addressBook
+    .filter(({ name }) => !name)
+    .map((nonContact) => {
+      const nonContactTx = txList.find(
+        (transaction) =>
+          transaction.txParams.to === nonContact.address.toLowerCase(),
+      );
+      return { ...nonContact, timestamp: nonContactTx?.time };
+    });
+
+  nonContacts.sort((a, b) => {
+    return b.timestamp - a.timestamp;
+  });
+
+  const ownedAccounts = getInternalAccountsSortedByKeyring(state).map(
+    ({ address, metadata }) => {
+      return {
+        address,
+        name: metadata.name,
+      };
+    },
+  );
 
   return {
     addressBook,
     addressBookEntryName,
     contacts: addressBook.filter(({ name }) => Boolean(name)),
-    ensResolution,
-    ensError: getEnsError(state),
-    ensWarning: getEnsWarning(state),
-    nonContacts: addressBook.filter(({ name }) => !name),
+    domainResolution,
+    domainError: getDomainError(state),
+    domainWarning: getDomainWarning(state),
+    nonContacts,
     ownedAccounts,
-    isUsingMyAccountsForRecipientSearch: getIsUsingMyAccountForRecipientSearch(
-      state,
-    ),
     userInput: getRecipientUserInput(state),
     recipient: getRecipient(state),
+    ///: BEGIN:ONLY_INCLUDE_IF(build-flask)
+    resolvingSnap,
+    domainType,
+    ///: END:ONLY_INCLUDE_IF
   };
 }
 

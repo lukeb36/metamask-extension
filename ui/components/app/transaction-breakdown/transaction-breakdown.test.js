@@ -2,6 +2,11 @@ import React from 'react';
 import configureMockStore from 'redux-mock-store';
 import { within } from '@testing-library/react';
 import { renderWithProvider } from '../../../../test/jest/rendering';
+import {
+  MAINNET_DISPLAY_NAME,
+  NETWORK_TYPES,
+  CHAIN_IDS,
+} from '../../../../shared/constants/network';
 import TransactionBreakdown from '.';
 
 function getActualDataFrom(transactionBreakdownRows) {
@@ -19,10 +24,12 @@ function getActualDataFrom(transactionBreakdownRows) {
 describe('TransactionBreakdown', () => {
   const store = configureMockStore()({
     metamask: {
-      nativeCurrency: null,
+      currencyRates: {},
       preferences: {},
-      provider: {
-        chainId: null,
+      providerConfig: {
+        chainId: CHAIN_IDS.MAINNET,
+        nickname: MAINNET_DISPLAY_NAME,
+        type: NETWORK_TYPES.MAINNET,
       },
     },
   });
@@ -49,7 +56,7 @@ describe('TransactionBreakdown', () => {
       ).toStrictEqual([
         ['Nonce', '29'],
         ['Amount', '-0.01 ETH'],
-        ['Gas Limit (units)', '46890'],
+        ['Gas limit (units)', '46890'],
         ['Gas price', '2.467043803'],
         ['Total', '0.01011568ETH'],
       ]);
@@ -84,12 +91,12 @@ describe('TransactionBreakdown', () => {
       ).toStrictEqual([
         ['Nonce', '29'],
         ['Amount', '-0.01 ETH'],
-        ['Gas Limit (units)', '46890'],
-        ['Gas Used (units)', '31260'],
-        ['Base Fee (GWEI)', '0.000000007'],
-        ['Priority Fee (GWEI)', '2.467043796'],
-        ['Total Gas Fee', '0.000077ETH'],
-        ['Max Fee Per Gas', '0.000000003ETH'],
+        ['Gas limit (units)', '46890'],
+        ['Gas used (units)', '31260'],
+        ['Base fee (GWEI)', '0.000000007'],
+        ['Priority fee (GWEI)', '2.467043796'],
+        ['Total gas fee', '0.000077ETH'],
+        ['Max fee per gas', '0.000000003ETH'],
         ['Total', '0.01007712ETH'],
       ]);
     });

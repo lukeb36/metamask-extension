@@ -1,59 +1,59 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { Provider } from 'react-redux';
 
-import { select } from '@storybook/addon-knobs';
-import { store } from '../../../.storybook/preview';
-import { updateTransactionParams } from '../../store/actions';
-import ConfirmSendEther from '.';
+import mockState from '../../../test/data/mock-state.json';
+import configureStore from '../../store/store';
+import ConfirmSendEther from './confirm-send-ether';
+
+const sendEther = {
+  id: 9597986287241458,
+  time: 1681203297082,
+  status: 'unapproved',
+  originalGasEstimate: '0x5208',
+  userEditedGasLimit: false,
+  chainId: '0x5',
+  loadingDefaults: false,
+  dappSuggestedGasFees: {
+    maxPriorityFeePerGas: '0x3b9aca00',
+    maxFeePerGas: '0x2540be400',
+  },
+  sendFlowHistory: [],
+  txParams: {
+    from: '0x0dcd5d886577d5081b0c52e242ef29e70be3e7bc',
+    to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+    value: '0x0',
+    gas: '0x5208',
+    maxFeePerGas: '0x2540be400',
+    maxPriorityFeePerGas: '0x3b9aca00',
+  },
+  origin: 'https://metamask.github.io',
+  actionId: 1830698773,
+  type: 'simpleSend',
+  securityProviderResponse: null,
+  userFeeLevel: 'dappSuggested',
+  defaultGasEstimates: {
+    estimateType: 'dappSuggested',
+    gas: '0x5208',
+    maxFeePerGas: '0x2540be400',
+    maxPriorityFeePerGas: '0x3b9aca00',
+  },
+};
+
+mockState.metamask.transactions.push(sendEther);
+
+mockState.confirmTransaction = {
+  txData: sendEther,
+};
+
+const store = configureStore(mockState);
 
 export default {
   title: 'Pages/ConfirmSendEther',
-  id: __filename,
-};
-
-// transaction id for redux dispatcher
-const id = 3111025347726181;
-
-const PageSet = ({ children }) => {
-  const options = [];
-  const receiverOptions = {
-    'Address 1': '0xaD6D458402F60fD3Bd25163575031ACDce07538D',
-    'Address 2': '0x55e0bfb2d400e9be8cf9b114e38a40969a02f69a',
-  };
-  const state = store.getState();
-  const { identities } = state.metamask;
-  Object.keys(identities).forEach(function (key) {
-    options.push({
-      label: identities[key].name,
-      address: key,
-    });
-  });
-  const sender = select('Sender', options, options[0]);
-  const receiver = select(
-    'Receiver',
-    receiverOptions,
-    '0xaD6D458402F60fD3Bd25163575031ACDce07538D',
-  );
-
-  const confirmTransactionState = state.confirmTransaction.txData.txParams;
-
-  useEffect(() => {
-    confirmTransactionState.from = sender.address;
-    store.dispatch(updateTransactionParams(id, confirmTransactionState));
-  }, [sender, confirmTransactionState]);
-
-  useEffect(() => {
-    confirmTransactionState.to = receiver;
-    store.dispatch(updateTransactionParams(id, confirmTransactionState));
-  }, [receiver, confirmTransactionState]);
-  return children;
+  decorators: [(story) => <Provider store={store}>{story()}</Provider>],
 };
 
 export const DefaultStory = () => {
-  return (
-    <PageSet>
-      <ConfirmSendEther />
-    </PageSet>
-  );
+  return <ConfirmSendEther />;
 };
 
 DefaultStory.storyName = 'Default';

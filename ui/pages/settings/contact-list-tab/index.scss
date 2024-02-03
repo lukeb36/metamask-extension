@@ -1,13 +1,13 @@
 .address-book-wrapper {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   height: 100%;
 }
 
 .address-book {
   flex: 0.4 1 100%;
 
-  @media screen and (max-width: $break-small) {
+  @include screen-sm-max {
     flex: 1;
     max-width: 100%;
 
@@ -16,17 +16,9 @@
     }
   }
 
-  &__header,
-  &__header--edit {
-    &__name {
-      @include H3;
-
-      margin-left: 24px;
-      max-width: 8em;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      white-space: nowrap;
-    }
+  &__header {
+    display: flex;
+    align-items: center;
   }
 
   &__header--edit {
@@ -51,9 +43,8 @@
   }
 
   &__icon {
-    margin-bottom: 16px;
+    margin: 0 auto 16px auto;
     display: block;
-    color: var(--color-icon-muted);
   }
 
   &__title {
@@ -102,7 +93,7 @@
     }
 
     &__address {
-      height: 60px !important;
+      height: 90px !important;
 
       textarea {
         padding-top: 10px !important;
@@ -119,7 +110,7 @@
         @include H7;
 
         color: var(--color-text-alternative);
-        margin-bottom: 0.25rem;
+        margin-top: 0.75rem;
       }
 
       &__label--capitalized {
@@ -182,10 +173,6 @@
         padding-top: 0;
       }
     }
-
-    .page-container__footer {
-      border-top: none;
-    }
   }
 
   &__add-contact {
@@ -193,10 +180,16 @@
     flex-flow: column nowrap;
     padding-bottom: 0 !important;
     height: 100%;
+    padding-top: 0;
 
     &__content {
       flex: 1 1 auto;
       height: 100%;
+      padding-top: 0;
+
+      &__username {
+        padding-top: 0;
+      }
     }
 
     &__error {
@@ -210,15 +203,7 @@
 
 .address-book-add-button {
   &__button {
-    position: absolute;
-    top: 80px;
-    right: 16px;
-    width: auto;
-
-    @media screen and (max-width: $break-small) {
-      top: 8px;
-      right: 60px;
-
+    @include screen-sm-max {
       &--hidden {
         display: none;
       }
@@ -233,7 +218,7 @@
 .address-book-contact-content {
   flex: 0.4 1 100%;
 
-  @media screen and (max-width: $break-small) {
+  @include screen-sm-max {
     flex: 1;
   }
 }

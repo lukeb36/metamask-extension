@@ -1,30 +1,30 @@
 import { useSelector } from 'react-redux';
 import React, { useEffect } from 'react';
-
+import { EditGasModes, PriorityLevels } from '../../../../shared/constants/gas';
 import {
-  EDIT_GAS_MODES,
-  PRIORITY_LEVELS,
-} from '../../../../shared/constants/gas';
-import {
-  ALIGN_ITEMS,
-  DISPLAY,
-  FLEX_DIRECTION,
-  TYPOGRAPHY,
+  AlignItems,
+  Display,
+  FlexDirection,
+  TextVariant,
 } from '../../../helpers/constants/design-system';
 import { getAppIsLoading } from '../../../selectors';
 import { gasEstimateGreaterThanGasUsedPlusTenPercent } from '../../../helpers/utils/gas';
 import { useGasFeeContext } from '../../../contexts/gasFee';
 import { useI18nContext } from '../../../hooks/useI18nContext';
 import { useTransactionModalContext } from '../../../contexts/transaction-modal';
-import EditGasFeeButton from '../edit-gas-fee-button';
 import GasDetailsItem from '../gas-details-item';
 import Box from '../../ui/box';
-import Button from '../../ui/button';
-import I18nValue from '../../ui/i18n-value';
 import InfoTooltip from '../../ui/info-tooltip';
-import Popover from '../../ui/popover';
-import Typography from '../../ui/typography';
 import AppLoadingSpinner from '../app-loading-spinner';
+import {
+  Text,
+  Button,
+  ButtonLink,
+  Modal,
+  ModalOverlay,
+} from '../../component-library';
+import { ModalContent } from '../../component-library/modal-content/deprecated';
+import { ModalHeader } from '../../component-library/modal-header/deprecated';
 
 const CancelSpeedupPopover = () => {
   const {
@@ -56,10 +56,10 @@ const CancelSpeedupPopover = () => {
       gasEstimateGreaterThanGasUsedPlusTenPercent(
         transaction.txParams,
         gasFeeEstimates,
-        PRIORITY_LEVELS.MEDIUM,
+        PriorityLevels.medium,
       );
     if (gasUsedLessThanMedium) {
-      updateTransactionUsingEstimate(PRIORITY_LEVELS.MEDIUM);
+      updateTransactionUsingEstimate(PriorityLevels.medium);
       return;
     }
     updateTransactionToTenPercentIncreasedGasFee(true);
@@ -79,7 +79,7 @@ const CancelSpeedupPopover = () => {
   }
 
   const submitTransactionChange = () => {
-    if (editGasMode === EDIT_GAS_MODES.CANCEL) {
+    if (editGasMode === EditGasModes.cancel) {
       cancelTransaction();
     } else {
       speedUpTransaction();
@@ -88,73 +88,71 @@ const CancelSpeedupPopover = () => {
   };
 
   return (
-    <Popover
-      title={
-        <>
-          {editGasMode === EDIT_GAS_MODES.CANCEL
-            ? `❌${t('cancel')}`
-            : `🚀${t('speedUp')}`}
-        </>
-      }
+    <Modal
+      isOpen
       onClose={() => closeModal(['cancelSpeedUpTransaction'])}
       className="cancel-speedup-popover"
     >
-      <AppLoadingSpinner className="cancel-speedup-popover__spinner" />
-      <div className="cancel-speedup-popover__wrapper">
-        <Typography
-          boxProps={{ alignItems: ALIGN_ITEMS.CENTER, display: DISPLAY.FLEX }}
-          variant={TYPOGRAPHY.H6}
-          margin={[0, 0, 2, 0]}
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader
+          onClose={() => closeModal(['cancelSpeedUpTransaction'])}
+          marginBottom={4}
         >
-          <I18nValue
-            messageKey="cancelSpeedUpLabel"
-            options={[
-              <strong key="cancelSpeedupReplace">
-                <I18nValue messageKey="replace" />
-              </strong>,
-            ]}
-          />
-          <InfoTooltip
-            position="top"
-            contentText={
-              <Box>
-                {t('cancelSpeedUpTransactionTooltip', [
-                  editGasMode === EDIT_GAS_MODES.CANCEL
-                    ? t('cancel')
-                    : t('speedUp'),
-                ])}
-                <div>
-                  <a
+          {editGasMode === EditGasModes.cancel
+            ? `❌${t('cancel')}`
+            : `🚀${t('speedUp')}`}
+        </ModalHeader>
+
+        <AppLoadingSpinner className="cancel-speedup-popover__spinner" />
+        <div className="cancel-speedup-popover__wrapper">
+          <Text
+            alignItems={AlignItems.center}
+            display={Display.Flex}
+            variant={TextVariant.bodySm}
+            marginBottom={2}
+            paddingBottom={2}
+            className="cancel-speedup-popover__description"
+          >
+            {t('cancelSpeedUpLabel', [
+              <strong key="cancelSpeedupReplace">{t('replace')}</strong>,
+            ])}
+            <InfoTooltip
+              position="top"
+              contentText={
+                <>
+                  <Text variant={TextVariant.bodySm}>
+                    {t('cancelSpeedUpTransactionTooltip', [
+                      editGasMode === EditGasModes.cancel
+                        ? t('cancel')
+                        : t('speedUp'),
+                    ])}
+                  </Text>
+                  <ButtonLink
+                    variant={TextVariant.bodySm}
                     href="https://community.metamask.io/t/how-to-speed-up-or-cancel-transactions-on-metamask/3296"
                     target="_blank"
-                    rel="noopener noreferrer"
                   >
                     {t('learnMoreUpperCase')}
-                  </a>
-                </div>
-              </Box>
-            }
-          />
-        </Typography>
-        <div className="cancel-speedup-popover__separator" />
-        <Box
-          display={DISPLAY.FLEX}
-          alignItems={ALIGN_ITEMS.CENTER}
-          flexDirection={FLEX_DIRECTION.COLUMN}
-          marginTop={4}
-        >
-          <Box className="cancel-speedup-popover__edit-gas-button">
-            {!appIsLoading && <EditGasFeeButton />}
+                  </ButtonLink>
+                </>
+              }
+            />
+          </Text>
+          <Box
+            display={Display.Flex}
+            alignItems={AlignItems.center}
+            flexDirection={FlexDirection.Column}
+            marginTop={2}
+          >
+            <div className="cancel-speedup-popover__gas-details">
+              <GasDetailsItem />
+            </div>
           </Box>
-          <Box className="cancel-speedup-popover__gas-details">
-            <GasDetailsItem />
-          </Box>
-        </Box>
-        <Button type="primary" onClick={submitTransactionChange}>
-          <I18nValue messageKey="submit" />
-        </Button>
-      </div>
-    </Popover>
+          <Button onClick={submitTransactionChange}>{t('submit')}</Button>
+        </div>
+      </ModalContent>
+    </Modal>
   );
 };
 

@@ -1,12 +1,20 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
 
-import { EDIT_GAS_MODES } from '../../../../shared/constants/gas';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import { EditGasModes } from '../../../../shared/constants/gas';
 import { renderWithProvider } from '../../../../test/lib/render-helpers';
-import { ETH } from '../../../helpers/constants/common';
 import configureStore from '../../../store/store';
 import { GasFeeContextProvider } from '../../../contexts/gasFee';
 
+import {
+  NETWORK_TYPES,
+  CHAIN_IDS,
+  GOERLI_DISPLAY_NAME,
+} from '../../../../shared/constants/network';
 import EditGasFeePopover from './edit-gas-fee-popover';
 
 jest.mock('../../../store/actions', () => ({
@@ -52,18 +60,30 @@ const MOCK_FEE_ESTIMATE = {
 const render = ({ txProps, contextProps } = {}) => {
   const store = configureStore({
     metamask: {
-      nativeCurrency: ETH,
-      provider: {},
-      cachedBalances: {},
+      currencyRates: {},
+      providerConfig: {
+        chainId: CHAIN_IDS.GOERLI,
+        nickname: GOERLI_DISPLAY_NAME,
+        type: NETWORK_TYPES.GOERLI,
+      },
+      accountsByChainId: {
+        [CHAIN_IDS.GOERLI]: {
+          '0xAddress': { address: '0xAddress', balance: '0x1F4' },
+        },
+      },
       accounts: {
         '0xAddress': {
           address: '0xAddress',
           balance: '0x1F4',
         },
       },
+      identities: {
+        '0xAddress': {},
+      },
       selectedAddress: '0xAddress',
       featureFlags: { advancedInlineGas: true },
       gasFeeEstimates: MOCK_FEE_ESTIMATE,
+      advancedGasFee: {},
     },
   });
 
@@ -108,20 +128,32 @@ describe('EditGasFeePopover', () => {
   });
 
   it('should not show insufficient balance message if transaction value is less than balance', () => {
-    render({ txProps: { userFeeLevel: 'high', txParams: { value: '0x64' } } });
+    render({
+      txProps: {
+        status: TransactionStatus.unapproved,
+        type: TransactionType.simpleSend,
+        userFeeLevel: 'high',
+        txParams: { value: '0x64', from: '0xAddress' },
+      },
+    });
     expect(screen.queryByText('Insufficient funds.')).not.toBeInTheDocument();
   });
 
   it('should show insufficient balance message if transaction value is more than balance', () => {
     render({
-      txProps: { userFeeLevel: 'high', txParams: { value: '0x5208' } },
+      txProps: {
+        status: TransactionStatus.unapproved,
+        type: TransactionType.simpleSend,
+        userFeeLevel: 'high',
+        txParams: { value: '0x5208', from: '0xAddress' },
+      },
     });
     expect(screen.queryByText('Insufficient funds.')).toBeInTheDocument();
   });
 
   it('should not show low, aggressive and dapp-suggested options for swap', () => {
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.SWAPS },
+      contextProps: { editGasMode: EditGasModes.swaps },
     });
     expect(screen.queryByText('🐢')).not.toBeInTheDocument();
     expect(screen.queryByText('🦊')).toBeInTheDocument();
@@ -139,7 +171,7 @@ describe('EditGasFeePopover', () => {
 
   it('should not show time estimates for swaps', () => {
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.SWAPS },
+      contextProps: { editGasMode: EditGasModes.swaps },
     });
     expect(screen.queryByText('Time')).not.toBeInTheDocument();
     expect(screen.queryByText('Max fee')).toBeInTheDocument();
@@ -147,43 +179,43 @@ describe('EditGasFeePopover', () => {
 
   it('should show correct header for edit gas mode', () => {
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.SWAPS },
+      contextProps: { editGasMode: EditGasModes.swaps },
     });
     expect(screen.queryByText('Edit gas fee')).toBeInTheDocument();
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.CANCEL },
+      contextProps: { editGasMode: EditGasModes.cancel },
     });
     expect(screen.queryByText('Edit cancellation gas fee')).toBeInTheDocument();
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.SPEED_UP },
+      contextProps: { editGasMode: EditGasModes.speedUp },
     });
     expect(screen.queryByText('Edit speed up gas fee')).toBeInTheDocument();
   });
 
   it('should not show low option for cancel mode', () => {
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.CANCEL },
+      contextProps: { editGasMode: EditGasModes.cancel },
     });
     expect(screen.queryByText('Low')).not.toBeInTheDocument();
   });
 
   it('should not show low option for speedup mode', () => {
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.SPEED_UP },
+      contextProps: { editGasMode: EditGasModes.speedUp },
     });
     expect(screen.queryByText('Low')).not.toBeInTheDocument();
   });
 
   it('should show tenPercentIncreased option for cancel gas mode', () => {
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.CANCEL },
+      contextProps: { editGasMode: EditGasModes.cancel },
     });
     expect(screen.queryByText('10% increase')).toBeInTheDocument();
   });
 
   it('should show tenPercentIncreased option for speedup gas mode', () => {
     render({
-      contextProps: { editGasMode: EDIT_GAS_MODES.SPEED_UP },
+      contextProps: { editGasMode: EditGasModes.speedUp },
     });
     expect(screen.queryByText('10% increase')).toBeInTheDocument();
   });

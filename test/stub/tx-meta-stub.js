@@ -1,8 +1,8 @@
-import { GAS_LIMITS } from '../../shared/constants/gas';
 import {
-  TRANSACTION_STATUSES,
-  TRANSACTION_TYPES,
-} from '../../shared/constants/transaction';
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import { GAS_LIMITS } from '../../shared/constants/gas';
 
 export const txMetaStub = {
   firstRetryBlockNumber: '0x51a402',
@@ -11,10 +11,10 @@ export const txMetaStub = {
     {
       id: 405984854664302,
       loadingDefaults: true,
-      metamaskNetworkId: '4',
-      status: TRANSACTION_STATUSES.UNAPPROVED,
+      chainId: '0x5',
+      status: TransactionStatus.unapproved,
       time: 1572395156620,
-      type: TRANSACTION_TYPES.SIMPLE_SEND,
+      type: TransactionType.simpleSend,
       txParams: {
         from: '0xf231d46dd78806e1dd93442cf33c7671f8538748',
         gas: GAS_LIMITS.SIMPLE,
@@ -47,7 +47,7 @@ export const txMetaStub = {
         op: 'replace',
         path: '/status',
         timestamp: 1572395158240,
-        value: TRANSACTION_STATUSES.APPROVED,
+        value: TransactionStatus.approved,
       },
     ],
     [
@@ -56,34 +56,7 @@ export const txMetaStub = {
         op: 'add',
         path: '/txParams/nonce',
         timestamp: 1572395158261,
-        value: '0x4',
-      },
-      {
-        op: 'add',
-        path: '/nonceDetails',
-        value: {
-          local: {
-            details: {
-              highest: 4,
-              startPoint: 4,
-            },
-            name: 'local',
-            nonce: 4,
-          },
-          network: {
-            details: {
-              baseCount: 4,
-              blockNumber: '0x51a401',
-            },
-            name: 'network',
-            nonce: 4,
-          },
-          params: {
-            highestLocallyConfirmed: 0,
-            highestSuggested: 4,
-            nextNetworkNonce: 4,
-          },
-        },
+        value: '0x5',
       },
     ],
     [
@@ -113,7 +86,7 @@ export const txMetaStub = {
         op: 'replace',
         path: '/status',
         timestamp: 1572395158281,
-        value: TRANSACTION_STATUSES.SIGNED,
+        value: TransactionStatus.signed,
       },
       {
         op: 'add',
@@ -148,7 +121,7 @@ export const txMetaStub = {
         op: 'replace',
         path: '/status',
         timestamp: 1572395158576,
-        value: TRANSACTION_STATUSES.SUBMITTED,
+        value: TransactionStatus.submitted,
       },
     ],
     [
@@ -163,44 +136,20 @@ export const txMetaStub = {
   ],
   id: 405984854664302,
   loadingDefaults: false,
-  metamaskNetworkId: '4',
-  nonceDetails: {
-    local: {
-      details: {
-        highest: 4,
-        startPoint: 4,
-      },
-      name: 'local',
-      nonce: 4,
-    },
-    network: {
-      details: {
-        baseCount: 4,
-        blockNumber: '0x51a401',
-      },
-      name: 'network',
-      nonce: 4,
-    },
-    params: {
-      highestLocallyConfirmed: 0,
-      highestSuggested: 4,
-      nextNetworkNonce: 4,
-    },
-  },
   origin: 'MetaMask',
   r: '0x5f973e540f2d3c2f06d3725a626b75247593cb36477187ae07ecfe0a4db3cf57',
   rawTx:
     '0xf86204831e848082520894f231d46dd78806e1dd93442cf33c7671f853874880802ca05f973e540f2d3c2f06d3725a626b75247593cb36477187ae07ecfe0a4db3cf57a00259b52ee8c58baaa385fb05c3f96116e58de89bcc165cb3bfdfc708672fed8a',
   s: '0x0259b52ee8c58baaa385fb05c3f96116e58de89bcc165cb3bfdfc708672fed8a',
-  status: TRANSACTION_STATUSES.SUBMITTED,
+  status: TransactionStatus.submitted,
   submittedTime: 1572395158570,
   time: 1572395156620,
-  type: TRANSACTION_TYPES.SIMPLE_SEND,
+  type: TransactionType.simpleSend,
   txParams: {
     from: '0xf231d46dd78806e1dd93442cf33c7671f8538748',
     gas: GAS_LIMITS.SIMPLE,
     gasPrice: '0x1e8480',
-    nonce: '0x4',
+    nonce: '0x5',
     to: '0xf231d46dd78806e1dd93442cf33c7671f8538748',
     value: '0x0',
   },

@@ -1,14 +1,18 @@
-import Web3 from 'web3';
 import { warn } from 'loglevel';
-import SINGLE_CALL_BALANCES_ABI from 'single-call-balance-checker-abi';
-import { SINGLE_CALL_BALANCES_ADDRESS } from '../constants/contracts';
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import { MINUTE } from '../../../shared/constants/time';
-import { MAINNET_CHAIN_ID } from '../../../shared/constants/network';
+import { CHAIN_IDS } from '../../../shared/constants/network';
+import { STATIC_MAINNET_TOKEN_LIST } from '../../../shared/constants/tokens';
 import { isTokenDetectionEnabledForNetwork } from '../../../shared/modules/network.utils';
 import { isEqualCaseInsensitive } from '../../../shared/modules/string-utils';
-import { TOKEN_STANDARDS } from '../../../ui/helpers/constants/common';
-import { ASSET_TYPES } from '../../../shared/constants/transaction';
-import { EVENT, EVENT_NAMES } from '../../../shared/constants/metametrics';
+import {
+  AssetType,
+  TokenStandard,
+} from '../../../shared/constants/transaction';
+import {
+  MetaMetricsEventCategory,
+  MetaMetricsEventName,
+} from '../../../shared/constants/metametrics';
 
 // By default, poll every 3 minutes
 const DEFAULT_INTERVAL = MINUTE * 3;
@@ -17,120 +21,153 @@ const DEFAULT_INTERVAL = MINUTE * 3;
  * A controller that polls for token exchange
  * rates based on a user's current token list
  */
-export default class DetectTokensController {
+export default class DetectTokensController extends StaticIntervalPollingControllerOnly {
   /**
    * Creates a DetectTokensController
    *
-   * @param {Object} [config] - Options to configure controller
+   * @param {object} [config] - Options to configure controller
    * @param config.interval
    * @param config.preferences
    * @param config.network
-   * @param config.keyringMemStore
    * @param config.tokenList
    * @param config.tokensController
    * @param config.assetsContractController
    * @param config.trackMetaMetricsEvent
+   * @param config.messenger
+   * @param config.getCurrentSelectedAccount
+   * @param config.getNetworkClientById
+   * @param config.disableLegacyInterval
    */
   constructor({
+    messenger,
     interval = DEFAULT_INTERVAL,
     preferences,
     network,
-    keyringMemStore,
     tokenList,
     tokensController,
     assetsContractController = null,
     trackMetaMetricsEvent,
+    getCurrentSelectedAccount,
+    getNetworkClientById,
+    disableLegacyInterval = false,
   } = {}) {
+    super();
+    this.getNetworkClientById = getNetworkClientById;
+    this.messenger = messenger;
     this.assetsContractController = assetsContractController;
     this.tokensController = tokensController;
     this.preferences = preferences;
-    this.interval = interval;
+    if (!disableLegacyInterval) {
+      this.interval = interval;
+    }
     this.network = network;
-    this.keyringMemStore = keyringMemStore;
     this.tokenList = tokenList;
-    this.selectedAddress = this.preferences?.store.getState().selectedAddress;
+    this.useTokenDetection =
+      this.preferences?.store.getState().useTokenDetection;
+    this.selectedAddress = getCurrentSelectedAccount().address;
     this.tokenAddresses = this.tokensController?.state.tokens.map((token) => {
       return token.address;
     });
+    this.setIntervalLength(interval);
     this.hiddenTokens = this.tokensController?.state.ignoredTokens;
-    this.detectedTokens = process.env.TOKEN_DETECTION_V2
-      ? this.tokensController?.state.detectedTokens
-      : [];
+    this.detectedTokens = this.tokensController?.state.detectedTokens;
+    this.chainId = this.getChainIdFromNetworkStore();
     this._trackMetaMetricsEvent = trackMetaMetricsEvent;
 
-    preferences?.store.subscribe(({ selectedAddress, useTokenDetection }) => {
-      if (
-        this.selectedAddress !== selectedAddress ||
-        this.useTokenDetection !== useTokenDetection
-      ) {
-        this.selectedAddress = selectedAddress;
+    messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      (account) => {
+        const useTokenDetection =
+          this.preferences?.store.getState().useTokenDetection;
+        if (
+          this.selectedAddress !== account.address ||
+          this.useTokenDetection !== useTokenDetection
+        ) {
+          this.selectedAddress = account.address;
+          this.useTokenDetection = useTokenDetection;
+          this.restartTokenDetection({
+            selectedAddress: this.selectedAddress,
+          });
+        }
+      },
+    );
+
+    preferences?.store.subscribe(({ useTokenDetection }) => {
+      if (this.useTokenDetection !== useTokenDetection) {
         this.useTokenDetection = useTokenDetection;
-        this.restartTokenDetection();
+        this.restartTokenDetection({
+          selectedAddress: this.selectedAddress,
+        });
       }
     });
+
     tokensController?.subscribe(
       ({ tokens = [], ignoredTokens = [], detectedTokens = [] }) => {
         this.tokenAddresses = tokens.map((token) => {
           return token.address;
         });
         this.hiddenTokens = ignoredTokens;
-        this.detectedTokens = process.env.TOKEN_DETECTION_V2
-          ? detectedTokens
-          : [];
+        this.detectedTokens = detectedTokens;
       },
     );
+    messenger.subscribe('NetworkController:stateChange', () => {
+      if (this.chainId !== this.getChainIdFromNetworkStore()) {
+        const chainId = this.getChainIdFromNetworkStore();
+        this.chainId = chainId;
+        this.restartTokenDetection({ chainId: this.chainId });
+      }
+    });
+
+    messenger.subscribe('TokenListController:stateChange', () => {
+      this.restartTokenDetection();
+    });
+
+    this.#registerKeyringHandlers();
   }
 
-  /**
-   * TODO: Remove during TOKEN_DETECTION_V2 feature flag clean up
-   *
-   * @param tokens
-   */
-  async _getTokenBalances(tokens) {
-    const ethContract = this.web3.eth
-      .contract(SINGLE_CALL_BALANCES_ABI)
-      .at(SINGLE_CALL_BALANCES_ADDRESS);
-    return new Promise((resolve, reject) => {
-      ethContract.balances([this.selectedAddress], tokens, (error, result) => {
-        if (error) {
-          return reject(error);
-        }
-        return resolve(result);
-      });
+  async _executePoll(networkClientId, options) {
+    const networkClient = this.getNetworkClientById(networkClientId);
+    await this.detectNewTokens({
+      ...options,
+      chainId: networkClient.configuration.chainId,
     });
   }
 
   /**
    * For each token in the tokenlist provided by the TokenListController, check selectedAddress balance.
+   *
+   * @param options
+   * @param options.selectedAddress - the selectedAddress against which to detect for token balances
+   * @param options.chainId - the chainId against which to detect for token balances
    */
-  async detectNewTokens() {
+  async detectNewTokens({ selectedAddress, chainId } = {}) {
+    const addressAgainstWhichToDetect = selectedAddress ?? this.selectedAddress;
+    const chainIdAgainstWhichToDetect =
+      chainId ?? this.getChainIdFromNetworkStore();
     if (!this.isActive) {
       return;
     }
-    if (
-      process.env.TOKEN_DETECTION_V2 &&
-      (!this.useTokenDetection ||
-        !isTokenDetectionEnabledForNetwork(
-          this._network.store.getState().provider.chainId,
-        ))
-    ) {
+    if (!isTokenDetectionEnabledForNetwork(chainIdAgainstWhichToDetect)) {
       return;
     }
-    const { tokenList } = this._tokenList.state;
-    // since the token detection is currently enabled only on Mainnet
-    // we can use the chainId check to ensure token detection is not triggered for any other network
-    // but once the balance check contract for other networks are deploayed and ready to use, we need to update this check.
     if (
-      !process.env.TOKEN_DETECTION_V2 &&
-      (this._network.store.getState().provider.chainId !== MAINNET_CHAIN_ID ||
-        Object.keys(tokenList).length === 0)
+      !this.useTokenDetection &&
+      chainIdAgainstWhichToDetect !== CHAIN_IDS.MAINNET
     ) {
       return;
     }
 
+    const isTokenDetectionInactiveInMainnet =
+      !this.useTokenDetection &&
+      chainIdAgainstWhichToDetect === CHAIN_IDS.MAINNET;
+    const { tokenList } = this._tokenList.state;
+
+    const tokenListUsed = isTokenDetectionInactiveInMainnet
+      ? STATIC_MAINNET_TOKEN_LIST
+      : tokenList;
+
     const tokensToDetect = [];
-    this.web3.setProvider(this._network._provider);
-    for (const tokenAddress in tokenList) {
+    for (const tokenAddress in tokenListUsed) {
       if (
         !this.tokenAddresses.find((address) =>
           isEqualCaseInsensitive(address, tokenAddress),
@@ -152,12 +189,10 @@ export default class DetectTokensController {
     for (const tokensSlice of sliceOfTokensToDetect) {
       let result;
       try {
-        result = process.env.TOKEN_DETECTION_V2
-          ? await this.assetsContractController.getBalancesInSingleCall(
-              this.selectedAddress,
-              tokensSlice,
-            )
-          : await this._getTokenBalances(tokensSlice);
+        result = await this.assetsContractController.getBalancesInSingleCall(
+          addressAgainstWhichToDetect,
+          tokensSlice,
+        );
       } catch (error) {
         warn(
           `MetaMask - DetectTokensController single call balance fetch failed`,
@@ -166,58 +201,38 @@ export default class DetectTokensController {
         return;
       }
 
-      let tokensWithBalance = [];
-      if (process.env.TOKEN_DETECTION_V2) {
-        const eventTokensDetails = [];
-        if (result) {
-          const nonZeroTokenAddresses = Object.keys(result);
-          for (const nonZeroTokenAddress of nonZeroTokenAddresses) {
-            const {
-              address,
-              symbol,
-              decimals,
-              iconUrl,
-              aggregators,
-            } = tokenList[nonZeroTokenAddress];
+      const tokensWithBalance = [];
+      const eventTokensDetails = [];
+      if (result) {
+        const nonZeroTokenAddresses = Object.keys(result);
+        for (const nonZeroTokenAddress of nonZeroTokenAddresses) {
+          const { address, symbol, decimals } =
+            tokenListUsed[nonZeroTokenAddress];
 
-            eventTokensDetails.push(`${symbol} - ${address}`);
+          eventTokensDetails.push(`${symbol} - ${address}`);
 
-            tokensWithBalance.push({
-              address,
-              symbol,
-              decimals,
-              image: iconUrl,
-              aggregators,
-            });
-          }
-
-          if (tokensWithBalance.length > 0) {
-            this._trackMetaMetricsEvent({
-              event: EVENT_NAMES.TOKEN_DETECTED,
-              category: EVENT.CATEGORIES.WALLET,
-              properties: {
-                tokens: eventTokensDetails,
-                token_standard: TOKEN_STANDARDS.ERC20,
-                asset_type: ASSET_TYPES.TOKEN,
-              },
-            });
-            await this.tokensController.addDetectedTokens(tokensWithBalance);
-          }
+          tokensWithBalance.push({
+            address,
+            symbol,
+            decimals,
+          });
         }
-      } else {
-        tokensWithBalance = tokensSlice.filter((_, index) => {
-          const balance = result[index];
-          return balance && !balance.isZero();
-        });
-        await Promise.all(
-          tokensWithBalance.map((tokenAddress) => {
-            return this.tokensController.addToken(
-              tokenAddress,
-              tokenList[tokenAddress].symbol,
-              tokenList[tokenAddress].decimals,
-            );
-          }),
-        );
+
+        if (tokensWithBalance.length > 0) {
+          this._trackMetaMetricsEvent({
+            event: MetaMetricsEventName.TokenDetected,
+            category: MetaMetricsEventCategory.Wallet,
+            properties: {
+              tokens: eventTokensDetails,
+              token_standard: TokenStandard.ERC20,
+              asset_type: AssetType.token,
+            },
+          });
+          await this.tokensController.addDetectedTokens(tokensWithBalance, {
+            selectedAddress: addressAgainstWhichToDetect,
+            chainId: chainIdAgainstWhichToDetect,
+          });
+        }
       }
     }
   }
@@ -226,13 +241,25 @@ export default class DetectTokensController {
    * Restart token detection polling period and call detectNewTokens
    * in case of address change or user session initialization.
    *
+   * @param options
+   * @param options.selectedAddress - the selectedAddress against which to detect for token balances
+   * @param options.chainId - the chainId against which to detect for token balances
    */
-  restartTokenDetection() {
-    if (!(this.isActive && this.selectedAddress)) {
+  restartTokenDetection({ selectedAddress, chainId } = {}) {
+    const addressAgainstWhichToDetect = selectedAddress ?? this.selectedAddress;
+    const chainIdAgainstWhichToDetect = chainId ?? this.chainId;
+    if (!(this.isActive && addressAgainstWhichToDetect)) {
       return;
     }
-    this.detectNewTokens();
+    this.detectNewTokens({
+      selectedAddress: addressAgainstWhichToDetect,
+      chainId: chainIdAgainstWhichToDetect,
+    });
     this.interval = DEFAULT_INTERVAL;
+  }
+
+  getChainIdFromNetworkStore() {
+    return this.network?.state.providerConfig.chainId;
   }
 
   /* eslint-disable accessor-pairs */
@@ -250,38 +277,7 @@ export default class DetectTokensController {
   }
 
   /**
-   * @type {Object}
-   */
-  set network(network) {
-    if (!network) {
-      return;
-    }
-    this._network = network;
-    this.web3 = new Web3(network._provider);
-  }
-
-  /**
-   * In setter when isUnlocked is updated to true, detectNewTokens and restart polling
-   *
-   * @type {Object}
-   */
-  set keyringMemStore(keyringMemStore) {
-    if (!keyringMemStore) {
-      return;
-    }
-    this._keyringMemStore = keyringMemStore;
-    this._keyringMemStore.subscribe(({ isUnlocked }) => {
-      if (this.isUnlocked !== isUnlocked) {
-        this.isUnlocked = isUnlocked;
-        if (isUnlocked) {
-          this.restartTokenDetection();
-        }
-      }
-    });
-  }
-
-  /**
-   * @type {Object}
+   * @type {object}
    */
   set tokenList(tokenList) {
     if (!tokenList) {
@@ -293,10 +289,28 @@ export default class DetectTokensController {
   /**
    * Internal isActive state
    *
-   * @type {Object}
+   * @type {object}
    */
   get isActive() {
     return this.isOpen && this.isUnlocked;
   }
   /* eslint-enable accessor-pairs */
+
+  /**
+   * Constructor helper to register listeners on the keyring
+   * locked state changes
+   */
+  #registerKeyringHandlers() {
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    this.isUnlocked = isUnlocked;
+
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.isUnlocked = true;
+      this.restartTokenDetection();
+    });
+
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.isUnlocked = false;
+    });
+  }
 }

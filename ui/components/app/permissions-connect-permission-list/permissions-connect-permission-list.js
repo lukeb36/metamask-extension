@@ -1,31 +1,46 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { getPermissionDescription } from '../../../helpers/utils/permission';
+import {
+  getRightIcon,
+  getWeightedPermissions,
+} from '../../../helpers/utils/permission';
 import { useI18nContext } from '../../../hooks/useI18nContext';
 
-export default function PermissionsConnectPermissionList({ permissions }) {
+/**
+ * Get one or more permission descriptions for a permission name.
+ *
+ * @param permission - The permission to render.
+ * @param index - The index of the permission.
+ * @returns {JSX.Element} A permission description node.
+ */
+function getDescriptionNode(permission, index) {
+  const { label, leftIcon, permissionName } = permission;
+
+  return (
+    <div className="permission" key={`${permissionName}-${index}`}>
+      {typeof leftIcon === 'string' ? <i className={leftIcon} /> : leftIcon}
+      {label}
+      {getRightIcon(permission)}
+    </div>
+  );
+}
+
+export default function PermissionsConnectPermissionList({
+  permissions,
+  targetSubjectMetadata,
+}) {
   const t = useI18nContext();
 
   return (
     <div className="permissions-connect-permission-list">
-      {Object.keys(permissions).map((permission) => {
-        const { label, leftIcon, rightIcon } = getPermissionDescription(
-          t,
-          permission,
-        );
-
-        return (
-          <div className="permission" key={permission}>
-            <i className={leftIcon} />
-            {label}
-            {rightIcon && <i className={rightIcon} />}
-          </div>
-        );
-      })}
+      {getWeightedPermissions(t, permissions, targetSubjectMetadata).map(
+        getDescriptionNode,
+      )}
     </div>
   );
 }
 
 PermissionsConnectPermissionList.propTypes = {
   permissions: PropTypes.object.isRequired,
+  targetSubjectMetadata: PropTypes.object.isRequired,
 };

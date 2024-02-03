@@ -5,8 +5,7 @@
     "id": 6854191329910881,
     "time": 1631558469046,
     "status": "approved",
-    "metamaskNetworkId": "42",
-    "chainId": "0x2a",
+    "chainId": "0x5",
     "loadingDefaults": false,
     "dappSuggestedGasFees": null,
     "txParams": {
@@ -25,8 +24,7 @@
         "id": 6854191329910881,
         "time": 1631558469046,
         "status": "unapproved",
-        "metamaskNetworkId": "42",
-        "chainId": "0x2a",
+        "chainId": "0x5",
         "loadingDefaults": true,
         "dappSuggestedGasFees": null,
         "txParams": {
@@ -80,9 +78,8 @@
   "primaryTransaction": {
     "id": 6854191329910881,
     "time": 1631558469046,
-    "status": "approved",
-    "metamaskNetworkId": "42",
-    "chainId": "0x2a",
+    "status": "submitted",
+    "chainId": "0x5",
     "loadingDefaults": false,
     "dappSuggestedGasFees": null,
     "txParams": {
@@ -101,8 +98,7 @@
         "id": 6854191329910881,
         "time": 1631558469046,
         "status": "unapproved",
-        "metamaskNetworkId": "42",
-        "chainId": "0x2a",
+        "chainId": "0x5",
         "loadingDefaults": true,
         "dappSuggestedGasFees": null,
         "txParams": {
@@ -158,8 +154,7 @@
       "id": 6854191329910881,
       "time": 1631558469046,
       "status": "approved",
-      "metamaskNetworkId": "42",
-      "chainId": "0x2a",
+      "chainId": "0x5",
       "loadingDefaults": false,
       "dappSuggestedGasFees": null,
       "txParams": {
@@ -178,8 +173,7 @@
           "id": 6854191329910881,
           "time": 1631558469046,
           "status": "unapproved",
-          "metamaskNetworkId": "42",
-          "chainId": "0x2a",
+          "chainId": "0x5",
           "loadingDefaults": true,
           "dappSuggestedGasFees": null,
           "txParams": {

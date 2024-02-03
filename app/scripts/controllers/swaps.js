@@ -1,15 +1,14 @@
-import { ethers } from 'ethers';
-import log from 'loglevel';
+import { Web3Provider } from '@ethersproject/providers';
+import { Contract } from '@ethersproject/contracts';
 import BigNumber from 'bignumber.js';
 import { ObservableStore } from '@metamask/obs-store';
 import { mapValues, cloneDeep } from 'lodash';
 import abi from 'human-standard-token-abi';
-import { calcTokenAmount } from '../../../ui/helpers/utils/token-util';
-import { calcGasTotal } from '../../../ui/pages/send/send.utils';
+import { captureException } from '@sentry/browser';
+
 import {
-  conversionUtil,
   decGWEIToHexWEI,
-  addCurrencies,
+  sumHexes,
 } from '../../../shared/modules/conversion.utils';
 import {
   DEFAULT_ERC20_APPROVE_GAS,
@@ -18,7 +17,13 @@ import {
   SWAPS_FETCH_ORDER_CONFLICT,
   SWAPS_CHAINID_CONTRACT_ADDRESS_MAP,
 } from '../../../shared/constants/swaps';
-import { GAS_ESTIMATE_TYPES } from '../../../shared/constants/gas';
+import { GasEstimateTypes } from '../../../shared/constants/gas';
+import { CHAIN_IDS } from '../../../shared/constants/network';
+import {
+  MetaMetricsEventCategory,
+  MetaMetricsEventName,
+  MetaMetricsEventErrorType,
+} from '../../../shared/constants/metametrics';
 import {
   FALLBACK_SMART_TRANSACTIONS_REFRESH_TIME,
   FALLBACK_SMART_TRANSACTIONS_DEADLINE,
@@ -30,11 +35,18 @@ import { isSwapsDefaultTokenAddress } from '../../../shared/modules/swaps.utils'
 import {
   fetchTradesInfo as defaultFetchTradesInfo,
   getBaseApi,
-} from '../../../ui/pages/swaps/swaps.util';
-import fetchWithCache from '../../../ui/helpers/utils/fetch-with-cache';
+} from '../../../shared/lib/swaps-utils';
+import fetchWithCache from '../../../shared/lib/fetch-with-cache';
 import { MINUTE, SECOND } from '../../../shared/constants/time';
 import { isEqualCaseInsensitive } from '../../../shared/modules/string-utils';
-import { NETWORK_EVENTS } from './network';
+import {
+  calcGasTotal,
+  calcTokenAmount,
+} from '../../../shared/lib/transactions-controller-utils';
+import fetchEstimatedL1Fee from '../../../ui/helpers/utils/optimism/fetchEstimatedL1Fee';
+
+import { Numeric } from '../../../shared/modules/Numeric';
+import { EtherDenomination } from '../../../shared/constants/common';
 
 // The MAX_GAS_LIMIT is a number that is higher than the maximum gas costs we have observed on any aggregator
 const MAX_GAS_LIMIT = 2500000;
@@ -90,26 +102,42 @@ const initialState = {
     swapsQuoteRefreshTime: FALLBACK_QUOTE_REFRESH_TIME,
     swapsQuotePrefetchingRefreshTime: FALLBACK_QUOTE_REFRESH_TIME,
     swapsStxBatchStatusRefreshTime: FALLBACK_SMART_TRANSACTIONS_REFRESH_TIME,
-    swapsStxGetTransactionsRefreshTime: FALLBACK_SMART_TRANSACTIONS_REFRESH_TIME,
+    swapsStxGetTransactionsRefreshTime:
+      FALLBACK_SMART_TRANSACTIONS_REFRESH_TIME,
     swapsStxMaxFeeMultiplier: FALLBACK_SMART_TRANSACTIONS_MAX_FEE_MULTIPLIER,
     swapsFeatureFlags: {},
   },
 };
 
 export default class SwapsController {
-  constructor({
-    getBufferedGasLimit,
-    networkController,
-    provider,
-    getProviderConfig,
-    getTokenRatesState,
-    fetchTradesInfo = defaultFetchTradesInfo,
-    getCurrentChainId,
-    getEIP1559GasFeeEstimates,
-  }) {
+  constructor(
+    {
+      getBufferedGasLimit,
+      provider,
+      getProviderConfig,
+      getTokenRatesState,
+      fetchTradesInfo = defaultFetchTradesInfo,
+      getCurrentChainId,
+      getEIP1559GasFeeEstimates,
+      trackMetaMetricsEvent,
+    },
+    state,
+  ) {
     this.store = new ObservableStore({
-      swapsState: { ...initialState.swapsState },
+      swapsState: {
+        ...initialState.swapsState,
+        swapsFeatureFlags: state?.swapsState?.swapsFeatureFlags || {},
+      },
     });
+
+    this.resetState = () => {
+      this.store.updateState({
+        swapsState: {
+          ...initialState.swapsState,
+          swapsFeatureFlags: state?.swapsState?.swapsFeatureFlags,
+        },
+      });
+    };
 
     this._fetchTradesInfo = fetchTradesInfo;
     this._getCurrentChainId = getCurrentChainId;
@@ -117,28 +145,25 @@ export default class SwapsController {
 
     this.getBufferedGasLimit = getBufferedGasLimit;
     this.getTokenRatesState = getTokenRatesState;
+    this.trackMetaMetricsEvent = trackMetaMetricsEvent;
 
     this.pollCount = 0;
     this.getProviderConfig = getProviderConfig;
 
     this.indexOfNewestCallInFlight = 0;
 
-    this.ethersProvider = new ethers.providers.Web3Provider(provider);
-    this._currentNetwork = networkController.store.getState().network;
-    networkController.on(NETWORK_EVENTS.NETWORK_DID_CHANGE, (network) => {
-      if (network !== 'loading' && network !== this._currentNetwork) {
-        this._currentNetwork = network;
-        this.ethersProvider = new ethers.providers.Web3Provider(provider);
-      }
-    });
+    this.provider = provider;
+    this.ethersProvider = new Web3Provider(provider);
+    this._ethersProviderChainId = this._getCurrentChainId();
   }
 
   async fetchSwapsNetworkConfig(chainId) {
-    const response = await fetchWithCache(
-      getBaseApi('network', chainId),
-      { method: 'GET' },
-      { cacheRefreshTime: 600000 },
-    );
+    const response = await fetchWithCache({
+      url: getBaseApi('network', chainId),
+      fetchOptions: { method: 'GET' },
+      cacheOptions: { cacheRefreshTime: 600000 },
+      functionName: 'fetchSwapsNetworkConfig',
+    });
     const { refreshRates, parameters = {} } = response || {};
     if (
       !refreshRates ||
@@ -231,6 +256,12 @@ export default class SwapsController {
     isPolledRequest,
   ) {
     const { chainId } = fetchParamsMetaData;
+
+    if (chainId !== this._ethersProviderChainId) {
+      this.ethersProvider = new Web3Provider(this.provider);
+      this._ethersProviderChainId = chainId;
+    }
+
     const {
       swapsState: { quotesPollingLimitEnabled, saveFetchedQuotes },
     } = this.store.getState();
@@ -283,6 +314,25 @@ export default class SwapsController {
       destinationTokenInfo: fetchParamsMetaData.destinationTokenInfo,
     }));
 
+    if (chainId === CHAIN_IDS.OPTIMISM && Object.values(newQuotes).length > 0) {
+      await Promise.all(
+        Object.values(newQuotes).map(async (quote) => {
+          if (quote.trade) {
+            const multiLayerL1TradeFeeTotal = await fetchEstimatedL1Fee(
+              chainId,
+              {
+                txParams: quote.trade,
+                chainId,
+              },
+              this.ethersProvider,
+            );
+            quote.multiLayerL1TradeFeeTotal = multiLayerL1TradeFeeTotal;
+          }
+          return quote;
+        }),
+      );
+    }
+
     const quotesLastFetched = Date.now();
 
     let approvalRequired = false;
@@ -313,6 +363,7 @@ export default class SwapsController {
       } else if (!isPolledRequest) {
         const { gasLimit: approvalGas } = await this.timedoutGasReturn(
           firstQuote.approvalNeeded,
+          firstQuote.aggregator,
         );
 
         newQuotes = mapValues(newQuotes, (quote) => ({
@@ -336,10 +387,8 @@ export default class SwapsController {
     if (Object.values(newQuotes).length === 0) {
       this.setSwapsErrorKey(QUOTES_NOT_AVAILABLE_ERROR);
     } else {
-      const [
-        _topAggId,
-        quotesWithSavingsAndFeeData,
-      ] = await this._findTopQuoteAndCalculateSavings(newQuotes);
+      const [_topAggId, quotesWithSavingsAndFeeData] =
+        await this._findTopQuoteAndCalculateSavings(newQuotes);
       topAggId = _topAggId;
       newQuotes = quotesWithSavingsAndFeeData;
     }
@@ -416,6 +465,7 @@ export default class SwapsController {
       Object.values(quotes).map(async (quote) => {
         const { gasLimit, simulationFails } = await this.timedoutGasReturn(
           quote.trade,
+          quote.aggregator,
         );
         return [gasLimit, simulationFails, quote.aggregator];
       }),
@@ -445,13 +495,24 @@ export default class SwapsController {
     return newQuotes;
   }
 
-  timedoutGasReturn(tradeTxParams) {
+  timedoutGasReturn(tradeTxParams, aggregator = '') {
     return new Promise((resolve) => {
       let gasTimedOut = false;
 
       const gasTimeout = setTimeout(() => {
         gasTimedOut = true;
-        resolve({ gasLimit: null, simulationFails: true });
+        this.trackMetaMetricsEvent({
+          event: MetaMetricsEventName.QuoteError,
+          category: MetaMetricsEventCategory.Swaps,
+          properties: {
+            error_type: MetaMetricsEventErrorType.GasTimeout,
+            aggregator,
+          },
+        });
+        resolve({
+          gasLimit: null,
+          simulationFails: true,
+        });
       }, SECOND * 5);
 
       // Remove gas from params that will be passed to the `estimateGas` call
@@ -472,7 +533,11 @@ export default class SwapsController {
           }
         })
         .catch((e) => {
-          log.error(e);
+          captureException(e, {
+            extra: {
+              aggregator,
+            },
+          });
           if (!gasTimedOut) {
             clearTimeout(gasTimeout);
             resolve({ gasLimit: null, simulationFails: true });
@@ -486,10 +551,11 @@ export default class SwapsController {
 
     const quoteToUpdate = { ...swapsState.quotes[initialAggId] };
 
-    const {
-      gasLimit: newGasEstimate,
-      simulationFails,
-    } = await this.timedoutGasReturn(quoteToUpdate.trade);
+    const { gasLimit: newGasEstimate, simulationFails } =
+      await this.timedoutGasReturn(
+        quoteToUpdate.trade,
+        quoteToUpdate.aggregator,
+      );
 
     if (newGasEstimate && !simulationFails) {
       const gasEstimateWithRefund = calculateGasEstimateWithRefund(
@@ -631,15 +697,15 @@ export default class SwapsController {
         swapsQuoteRefreshTime: swapsState.swapsQuoteRefreshTime,
         swapsQuotePrefetchingRefreshTime:
           swapsState.swapsQuotePrefetchingRefreshTime,
+        swapsFeatureFlags: swapsState.swapsFeatureFlags,
       },
     });
     clearTimeout(this.pollingTimeout);
   }
 
   async _findTopQuoteAndCalculateSavings(quotes = {}) {
-    const {
-      contractExchangeRates: tokenConversionRates,
-    } = this.getTokenRatesState();
+    const { contractExchangeRates: tokenConversionRates } =
+      this.getTokenRatesState();
     const {
       swapsState: { customGasPrice, customMaxPriorityFeePerGas },
     } = this.store.getState();
@@ -652,33 +718,36 @@ export default class SwapsController {
 
     const newQuotes = cloneDeep(quotes);
 
-    const {
-      gasFeeEstimates,
-      gasEstimateType,
-    } = await this._getEIP1559GasFeeEstimates();
+    const { gasFeeEstimates, gasEstimateType } =
+      await this._getEIP1559GasFeeEstimates();
 
     let usedGasPrice = '0x0';
 
-    if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
+    if (gasEstimateType === GasEstimateTypes.feeMarket) {
       const {
         high: { suggestedMaxPriorityFeePerGas },
         estimatedBaseFee,
       } = gasFeeEstimates;
 
-      usedGasPrice = addCurrencies(
-        customMaxPriorityFeePerGas || // Is already in hex WEI.
-          decGWEIToHexWEI(suggestedMaxPriorityFeePerGas),
-        decGWEIToHexWEI(estimatedBaseFee),
-        {
-          aBase: 16,
-          bBase: 16,
-          toNumericBase: 'hex',
-          numberOfDecimals: 6,
-        },
+      const suggestedMaxPriorityFeePerGasInHexWEI = decGWEIToHexWEI(
+        suggestedMaxPriorityFeePerGas,
       );
-    } else if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
+      const estimatedBaseFeeNumeric = new Numeric(
+        estimatedBaseFee,
+        10,
+        EtherDenomination.GWEI,
+      ).toDenomination(EtherDenomination.WEI);
+
+      usedGasPrice = new Numeric(
+        customMaxPriorityFeePerGas || suggestedMaxPriorityFeePerGasInHexWEI,
+        16,
+      )
+        .add(estimatedBaseFeeNumeric)
+        .round(6)
+        .toString();
+    } else if (gasEstimateType === GasEstimateTypes.legacy) {
       usedGasPrice = customGasPrice || decGWEIToHexWEI(gasFeeEstimates.high);
-    } else if (gasEstimateType === GAS_ESTIMATE_TYPES.ETH_GASPRICE) {
+    } else if (gasEstimateType === GasEstimateTypes.ethGasPrice) {
       usedGasPrice =
         customGasPrice || decGWEIToHexWEI(gasFeeEstimates.gasPrice);
     }
@@ -694,58 +763,56 @@ export default class SwapsController {
         destinationAmount = 0,
         destinationToken,
         destinationTokenInfo,
-        gasEstimate,
+        gasEstimateWithRefund,
         sourceAmount,
         sourceToken,
         trade,
         fee: metaMaskFee,
+        multiLayerL1TradeFeeTotal,
       } = quote;
 
-      const tradeGasLimitForCalculation = gasEstimate
-        ? new BigNumber(gasEstimate, 16)
+      const tradeGasLimitForCalculation = gasEstimateWithRefund
+        ? new BigNumber(gasEstimateWithRefund, 16)
         : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
 
       const totalGasLimitForCalculation = tradeGasLimitForCalculation
         .plus(approvalNeeded?.gas || '0x0', 16)
         .toString(16);
 
-      const gasTotalInWeiHex = calcGasTotal(
+      let gasTotalInWeiHex = calcGasTotal(
         totalGasLimitForCalculation,
         usedGasPrice,
       );
+      if (multiLayerL1TradeFeeTotal !== null) {
+        gasTotalInWeiHex = sumHexes(
+          gasTotalInWeiHex || '0x0',
+          multiLayerL1TradeFeeTotal || '0x0',
+        );
+      }
 
       // trade.value is a sum of different values depending on the transaction.
       // It always includes any external fees charged by the quote source. In
       // addition, if the source asset is the selected chain's default token, trade.value
       // includes the amount of that token.
-      const totalWeiCost = new BigNumber(gasTotalInWeiHex, 16).plus(
-        trade.value,
+      const totalWeiCost = new Numeric(
+        gasTotalInWeiHex,
         16,
-      );
+        EtherDenomination.WEI,
+      ).add(new Numeric(trade.value, 16, EtherDenomination.WEI));
 
-      const totalEthCost = conversionUtil(totalWeiCost, {
-        fromCurrency: 'ETH',
-        fromDenomination: 'WEI',
-        toDenomination: 'ETH',
-        fromNumericBase: 'BN',
-        numberOfDecimals: 6,
-      });
+      const totalEthCost = totalWeiCost
+        .toDenomination(EtherDenomination.ETH)
+        .round(6).value;
 
       // The total fee is aggregator/exchange fees plus gas fees.
       // If the swap is from the selected chain's default token, subtract
       // the sourceAmount from the total cost. Otherwise, the total fee
       // is simply trade.value plus gas fees.
       const ethFee = isSwapsDefaultTokenAddress(sourceToken, chainId)
-        ? conversionUtil(
-            totalWeiCost.minus(sourceAmount, 10), // sourceAmount is in wei
-            {
-              fromCurrency: 'ETH',
-              fromDenomination: 'WEI',
-              toDenomination: 'ETH',
-              fromNumericBase: 'BN',
-              numberOfDecimals: 6,
-            },
-          )
+        ? totalWeiCost
+            .minus(new Numeric(sourceAmount, 10))
+            .toDenomination(EtherDenomination.ETH)
+            .round(6).value
         : totalEthCost;
 
       const decimalAdjustedDestinationAmount = calcTokenAmount(
@@ -756,9 +823,8 @@ export default class SwapsController {
       const tokenPercentageOfPreFeeDestAmount = new BigNumber(100, 10)
         .minus(metaMaskFee, 10)
         .div(100);
-      const destinationAmountBeforeMetaMaskFee = decimalAdjustedDestinationAmount.div(
-        tokenPercentageOfPreFeeDestAmount,
-      );
+      const destinationAmountBeforeMetaMaskFee =
+        decimalAdjustedDestinationAmount.div(tokenPercentageOfPreFeeDestAmount);
       const metaMaskFeeInTokens = destinationAmountBeforeMetaMaskFee.minus(
         decimalAdjustedDestinationAmount,
       );
@@ -867,11 +933,7 @@ export default class SwapsController {
   }
 
   async _getERC20Allowance(contractAddress, walletAddress, chainId) {
-    const contract = new ethers.Contract(
-      contractAddress,
-      abi,
-      this.ethersProvider,
-    );
+    const contract = new Contract(contractAddress, abi, this.ethersProvider);
     return await contract.allowance(
       walletAddress,
       SWAPS_CHAINID_CONTRACT_ADDRESS_MAP[chainId],
@@ -883,7 +945,7 @@ export default class SwapsController {
  * Calculates the median overallValueOfQuote of a sample of quotes.
  *
  * @param {Array} _quotes - A sample of quote objects with overallValueOfQuote, ethFee, metaMaskFeeInEth, and ethValueOfTokens properties
- * @returns {Object} An object with the ethValueOfTokens, ethFee, and metaMaskFeeInEth of the quote with the median overallValueOfQuote
+ * @returns {object} An object with the ethValueOfTokens, ethFee, and metaMaskFeeInEth of the quote with the median overallValueOfQuote
  */
 function getMedianEthValueQuote(_quotes) {
   if (!Array.isArray(_quotes) || _quotes.length === 0) {
@@ -960,7 +1022,7 @@ function getMedianEthValueQuote(_quotes) {
  *
  * @param {Array} quotes - A sample of quote objects with overallValueOfQuote, ethFee, metaMaskFeeInEth and
  * ethValueOfTokens properties
- * @returns {Object} An object with the arithmetic mean each of the ethFee, metaMaskFeeInEth and ethValueOfTokens of
+ * @returns {object} An object with the arithmetic mean each of the ethFee, metaMaskFeeInEth and ethValueOfTokens of
  * the passed quote objects
  */
 function meansOfQuotesFeesAndValue(quotes) {

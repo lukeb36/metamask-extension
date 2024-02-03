@@ -1,26 +1,45 @@
 import { fireEvent } from '@testing-library/react';
 import React from 'react';
 import configureMockStore from 'redux-mock-store';
-import { TRANSACTION_TYPES } from '../../../../../shared/constants/transaction';
+import { TransactionType } from '@metamask/transaction-controller';
 import { renderWithProvider } from '../../../../../test/lib/render-helpers';
-import { TRANSACTION_ERROR_KEY } from '../../../../helpers/constants/error-keys';
+import {
+  INSUFFICIENT_FUNDS_ERROR_KEY,
+  IS_SIGNING_OR_SUBMITTING,
+  TRANSACTION_ERROR_KEY,
+} from '../../../../helpers/constants/error-keys';
+import { shortenAddress } from '../../../../helpers/utils/util';
 import ConfirmPageContainerContent from './confirm-page-container-content.component';
 
 describe('Confirm Page Container Content', () => {
   const mockStore = {
     metamask: {
-      provider: {
+      providerConfig: {
         type: 'test',
-        chainId: '0x3',
+        chainId: '0x5',
       },
-      eip1559V2Enabled: false,
       addressBook: {
-        '0x3': {
+        '0x5': {
           '0x06195827297c7A80a443b6894d3BDB8824b43896': {
             address: '0x06195827297c7A80a443b6894d3BDB8824b43896',
             name: 'Address Book Account 1',
-            chainId: '0x3',
+            chainId: '0x5',
           },
+        },
+      },
+      identities: {},
+      tokenList: {},
+      internalAccounts: {
+        accounts: {},
+        selectedAccount: '',
+      },
+    },
+    confirmTransaction: {
+      txData: {
+        txParams: {
+          gas: '0x153e2',
+          value: '0x0',
+          to: '0x0BC30598F0F386371eB3d2195AcAA14C7566534b',
         },
       },
     },
@@ -70,7 +89,7 @@ describe('Confirm Page Container Content', () => {
     expect(queryByText('I want to proceed anyway')).not.toBeInTheDocument();
     expect(getByText('Confirm').closest('button')).toBeDisabled();
     expect(
-      getByText('Transaction Error. Exception thrown in contract code.'),
+      getByText('Transaction error. Exception thrown in contract code.'),
     ).toBeInTheDocument();
 
     const cancelButton = getByText('Reject');
@@ -91,7 +110,7 @@ describe('Confirm Page Container Content', () => {
       ),
     ).not.toBeInTheDocument();
     expect(
-      queryByText('Transaction Error. Exception thrown in contract code.'),
+      queryByText('Transaction error. Exception thrown in contract code.'),
     ).not.toBeInTheDocument();
     expect(queryByText('I want to proceed anyway')).not.toBeInTheDocument();
 
@@ -104,27 +123,69 @@ describe('Confirm Page Container Content', () => {
     expect(props.onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('render contract address name from addressBook in title for contract', async () => {
+  it('render contract address in the content component', async () => {
     props.disabled = false;
     props.toAddress = '0x06195827297c7A80a443b6894d3BDB8824b43896';
-    props.transactionType = TRANSACTION_TYPES.CONTRACT_INTERACTION;
+    props.transactionType = TransactionType.contractInteraction;
     const { queryByText } = renderWithProvider(
       <ConfirmPageContainerContent {...props} />,
       store,
     );
+    const expectedAddress = shortenAddress(
+      mockStore.confirmTransaction.txData.txParams.to,
+    );
 
-    expect(queryByText('Address Book Account 1')).toBeInTheDocument();
+    expect(queryByText(`${expectedAddress}`)).toBeInTheDocument();
   });
 
   it('render simple title without address name for simple send', async () => {
     props.disabled = false;
     props.toAddress = '0x06195827297c7A80a443b6894d3BDB8824b43896';
-    props.transactionType = TRANSACTION_TYPES.SIMPLE_SEND;
+    props.transactionType = TransactionType.simpleSend;
     const { queryByText } = renderWithProvider(
       <ConfirmPageContainerContent {...props} />,
       store,
     );
 
     expect(queryByText('Address Book Account 1')).not.toBeInTheDocument();
+  });
+
+  it('should show insufficient funds error for EIP-1559 network', () => {
+    const { getByRole } = renderWithProvider(
+      <ConfirmPageContainerContent
+        {...props}
+        errorKey={INSUFFICIENT_FUNDS_ERROR_KEY}
+        isBuyableChain
+        supportsEIP1559
+      />,
+      store,
+    );
+    expect(getByRole('button', { name: 'Buy' })).toBeInTheDocument();
+  });
+
+  it('should show insufficient funds error for legacy network', () => {
+    const { getByRole } = renderWithProvider(
+      <ConfirmPageContainerContent
+        {...props}
+        errorKey={INSUFFICIENT_FUNDS_ERROR_KEY}
+        isBuyableChain
+        supportsEIP1559={false}
+      />,
+      store,
+    );
+    expect(getByRole('button', { name: 'Buy' })).toBeInTheDocument();
+  });
+
+  it('should show is signing or submitting error', () => {
+    const { queryByText } = renderWithProvider(
+      <ConfirmPageContainerContent
+        {...props}
+        errorKey={IS_SIGNING_OR_SUBMITTING}
+      />,
+      store,
+    );
+    expect(
+      queryByText('A previous transaction is still being signed or submitted'),
+    ).toBeInTheDocument();
   });
 });

@@ -7,11 +7,10 @@ import {
 } from '../../store/actions';
 import {
   getConnectedSubjectsForSelectedAddress,
-  getCurrentAccountWithSendEtherInfo,
   getOriginOfCurrentTab,
   getPermissionSubjects,
   getPermittedAccountsByOrigin,
-  getSelectedAddress,
+  getSelectedInternalAccount,
 } from '../../selectors';
 import { CONNECT_ROUTE } from '../../helpers/constants/routes';
 import { getMostRecentOverviewPage } from '../../ducks/history/history';
@@ -23,10 +22,10 @@ const mapStateToProps = (state) => {
   const connectedSubjects = getConnectedSubjectsForSelectedAddress(state);
   const originOfCurrentTab = getOriginOfCurrentTab(state);
   const permittedAccountsByOrigin = getPermittedAccountsByOrigin(state);
-  const selectedAddress = getSelectedAddress(state);
+  const { address: selectedAddress } = getSelectedInternalAccount(state);
 
-  const currentTabHasNoAccounts = !permittedAccountsByOrigin[originOfCurrentTab]
-    ?.length;
+  const currentTabHasNoAccounts =
+    !permittedAccountsByOrigin[originOfCurrentTab]?.length;
 
   let tabToConnect;
   if (originOfCurrentTab && currentTabHasNoAccounts && !openMetaMaskTabs[id]) {
@@ -36,7 +35,7 @@ const mapStateToProps = (state) => {
   }
 
   return {
-    accountLabel: getCurrentAccountWithSendEtherInfo(state).name,
+    accountLabel: getSelectedInternalAccount(state).metadata.name,
     connectedSubjects,
     subjects: getPermissionSubjects(state),
     mostRecentOverviewPage: getMostRecentOverviewPage(state),

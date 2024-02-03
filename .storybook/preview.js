@@ -1,5 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { addDecorator, addParameters } from '@storybook/react';
+/*
+  * The addParameters and addDecorator APIs to add global decorators and parameters, exported by the various frameworks (e.g. @storybook/react) and @storybook/client were deprecated in 6.0 and have been removed in 7.0.
+
+Instead, use export const parameters = {}; and export const decorators = []; in your .storybook/preview.js. Addon authors similarly should use such an export in a preview entry file (see Preview entries).
+  * */
+import React, { useEffect } from 'react';
 import { action } from '@storybook/addon-actions';
 import { Provider } from 'react-redux';
 import configureStore from '../ui/store/store';
@@ -11,11 +15,13 @@ import MetaMetricsProviderStorybook from './metametrics';
 import testData from './test-data.js';
 import { Router } from 'react-router-dom';
 import { createBrowserHistory } from 'history';
-import { _setBackgroundConnection } from '../ui/store/actions';
-import MetaMaskStorybookTheme from './metamask-storybook-theme';
-import addons from '@storybook/addons';
+import { setBackgroundConnection } from '../ui/store/background-connection';
+import { metamaskStorybookTheme } from './metamask-storybook-theme';
+import { DocsContainer } from '@storybook/addon-docs';
+import { useDarkMode } from 'storybook-dark-mode';
+import { themes } from '@storybook/theming';
 
-addParameters({
+export const parameters = {
   backgrounds: {
     default: 'default',
     values: [
@@ -24,20 +30,40 @@ addParameters({
     ],
   },
   docs: {
-    theme: MetaMaskStorybookTheme,
+    container: (context) => {
+      const isDark = useDarkMode();
+
+      const props = {
+        ...context,
+        theme: isDark
+          ? { ...themes.dark, ...metamaskStorybookTheme }
+          : { ...themes.light, ...metamaskStorybookTheme },
+        'data-theme': isDark ? 'dark' : 'light',
+      };
+
+      return (
+        <div data-theme={isDark ? 'dark' : 'light'}>
+          <DocsContainer {...props} />
+        </div>
+      );
+    },
   },
   options: {
     storySort: {
       order: [
         'Getting Started',
-        'Design Tokens',
+        'Foundations',
+        ['Color', 'Shadow', 'Breakpoints'],
         'Components',
-        ['UI', 'App'],
+        ['UI', 'App', 'Component Library'],
         'Pages',
       ],
     },
   },
-});
+  controls: {
+    expanded: true,
+  },
+};
 
 export const globalTypes = {
   locale: {
@@ -70,18 +96,12 @@ const proxiedBackground = new Proxy(
     },
   },
 );
-_setBackgroundConnection(proxiedBackground);
+setBackgroundConnection(proxiedBackground);
 
 const metamaskDecorator = (story, context) => {
-  const [isDark, setDark] = useState(false);
-  const channel = addons.getChannel();
+  const isDark = useDarkMode();
   const currentLocale = context.globals.locale;
   const current = allLocales[currentLocale];
-
-  useEffect(() => {
-    channel.on('DARK_MODE', setDark);
-    return () => channel.off('DARK_MODE', setDark);
-  }, [channel, setDark]);
 
   useEffect(() => {
     const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -113,4 +133,4 @@ const metamaskDecorator = (story, context) => {
   );
 };
 
-addDecorator(metamaskDecorator);
+export const decorators = [metamaskDecorator];

@@ -1,10 +1,10 @@
 import React from 'react';
-import testData from '../../../../../.storybook/test-data';
+import { networkList } from '../../../../../.storybook/test-data';
 import NetworksList from './networks-list';
 
 export default {
   title: 'Pages/Settings/NetworksTab/NetworksList',
-  id: __filename,
+
   argTypes: {
     networkDefaultedToProvider: {
       control: 'boolean',
@@ -19,7 +19,7 @@ export default {
   args: {
     networkDefaultedToProvider: false,
     networkIsSelected: false,
-    networksToRender: testData.networkList,
+    networksToRender: networkList,
   },
 };
 

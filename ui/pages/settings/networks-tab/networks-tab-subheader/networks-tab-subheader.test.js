@@ -1,11 +1,12 @@
 import React from 'react';
 import configureMockStore from 'redux-mock-store';
+import { waitFor } from '@testing-library/react';
 import { renderWithProvider } from '../../../../../test/jest/rendering';
 import NetworksTabSubheader from '.';
 
 const mockState = {
   metamask: {
-    provider: {
+    providerConfig: {
       chainId: '0x539',
       nickname: '',
       rpcPrefs: {},
@@ -13,7 +14,7 @@ const mockState = {
       ticker: 'ETH',
       type: 'localhost',
     },
-    frequentRpcListDetail: [],
+    networkConfigurations: {},
   },
   appState: {
     networksTabSelectedRpcUrl: 'http://localhost:8545',
@@ -36,11 +37,11 @@ describe('NetworksTabSubheader Component', () => {
     expect(getByRole('button', { text: 'Add a network' })).toBeDefined();
   });
   it('should render add network form subheader correctly', () => {
-    const { queryByText } = renderComponent({
+    const { queryByText, getAllByText } = renderComponent({
       addNewNetwork: true,
     });
     expect(queryByText('Networks')).toBeInTheDocument();
-    expect(queryByText('>')).toBeInTheDocument();
+    waitFor(() => expect(getAllByText('>')).toBeInTheDocument());
     expect(queryByText('Add a network')).toBeInTheDocument();
   });
 });

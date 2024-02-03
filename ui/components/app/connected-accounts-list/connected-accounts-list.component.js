@@ -1,5 +1,15 @@
 import PropTypes from 'prop-types';
 import React, { PureComponent } from 'react';
+import {
+  BackgroundColor,
+  TextVariant,
+} from '../../../helpers/constants/design-system';
+import {
+  ButtonLink,
+  ButtonLinkSize,
+  IconName,
+  Text,
+} from '../../component-library';
 import { MenuItem } from '../../ui/menu';
 import ConnectedAccountsListItem from './connected-accounts-list-item';
 import ConnectedAccountsListOptions from './connected-accounts-list-options';
@@ -15,8 +25,17 @@ export default class ConnectedAccountsList extends PureComponent {
 
   static propTypes = {
     accountToConnect: PropTypes.shape({
+      id: PropTypes.string.isRequired,
       address: PropTypes.string.isRequired,
-      name: PropTypes.string.isRequired,
+      metadata: PropTypes.shape({
+        name: PropTypes.string.isRequired,
+        keyring: PropTypes.shape({
+          type: PropTypes.string.isRequired,
+        }).isRequired,
+      }).isRequired,
+      options: PropTypes.object.isRequired,
+      methods: PropTypes.arrayOf(PropTypes.string).isRequired,
+      type: PropTypes.string.isRequired,
     }),
     connectedAccounts: PropTypes.arrayOf(
       PropTypes.shape({
@@ -75,20 +94,27 @@ export default class ConnectedAccountsList extends PureComponent {
       return null;
     }
 
-    const { address, name } = accountToConnect;
+    const {
+      address,
+      metadata: { name },
+    } = accountToConnect;
     return (
       <ConnectedAccountsListItem
         className="connected-accounts-list__row--highlight"
+        backgroundColor={BackgroundColor.warningMuted}
         address={address}
-        name={`${name} (…${address.substr(-4, 4)})`}
+        name={name}
         status={t('statusNotConnected')}
         action={
-          <a
-            className="connected-accounts-list__account-status-link"
-            onClick={() => connectAccount(accountToConnect.address)}
-          >
-            {t('connect')}
-          </a>
+          <Text variant={TextVariant.bodyMd}>
+            <ButtonLink
+              className="connected-accounts-list__account-status-link"
+              onClick={() => connectAccount(address)}
+              size={ButtonLinkSize.Inherit}
+            >
+              {t('connect')}
+            </ButtonLink>
+          </Text>
         }
       />
     );
@@ -104,7 +130,7 @@ export default class ConnectedAccountsList extends PureComponent {
         onShowOptions={this.showAccountOptions.bind(null, address)}
         show={accountWithOptionsShown === address}
       >
-        <MenuItem iconClassName="fa fa-ban" onClick={this.disconnectAccount}>
+        <MenuItem iconName={IconName.Logout} onClick={this.disconnectAccount}>
           {t('disconnectThisAccount')}
         </MenuItem>
       </ConnectedAccountsListOptions>
@@ -115,21 +141,21 @@ export default class ConnectedAccountsList extends PureComponent {
     const { t } = this.context;
 
     return (
-      <a
-        className="connected-accounts-list__account-status-link"
-        onClick={() => this.switchAccount(address)}
-      >
-        {t('switchToThisAccount')}
-      </a>
+      <Text variant={TextVariant.bodyMd}>
+        <ButtonLink
+          className="connected-accounts-list__account-status-link"
+          onClick={() => this.switchAccount(address)}
+          size={ButtonLinkSize.Inherit}
+        >
+          {t('switchToThisAccount')}
+        </ButtonLink>
+      </Text>
     );
   }
 
   render() {
-    const {
-      connectedAccounts,
-      selectedAddress,
-      shouldRenderListOptions,
-    } = this.props;
+    const { connectedAccounts, selectedAddress, shouldRenderListOptions } =
+      this.props;
     const { t } = this.context;
 
     return (
@@ -141,7 +167,7 @@ export default class ConnectedAccountsList extends PureComponent {
               <ConnectedAccountsListItem
                 key={address}
                 address={address}
-                name={`${name} (…${address.substr(-4, 4)})`}
+                name={name}
                 status={index === 0 ? t('active') : null}
                 options={
                   shouldRenderListOptions

@@ -14,7 +14,7 @@ const recipient = metamask.accountArray[0];
 
 export default {
   title: 'Pages/Send/SendContent/AddRecipient',
-  id: __filename,
+
   decorators: [(story) => <Provider store={store}>{story()}</Provider>],
   argTypes: {
     userInput: {
@@ -29,13 +29,13 @@ export default {
     updateRecipient: {
       action: 'updateRecipient',
     },
-    ensResolution: {
+    domainResolution: {
       control: 'text',
     },
-    ensError: {
+    domainError: {
       control: 'text',
     },
-    ensWarning: {
+    domainWarning: {
       control: 'text',
     },
     addressBookEntryName: {
@@ -52,9 +52,6 @@ export default {
     },
     useContactListForRecipientSearch: {
       action: 'useContactListForRecipientSearch',
-    },
-    isUsingMyAccountsForRecipientSearch: {
-      control: 'bool',
     },
     recipient: {
       control: 'object',
@@ -94,13 +91,11 @@ export const ErrorStory = (args) => {
     </div>
   );
 };
-
-ErrorStory.argTypes = {
-  // ensError must be the key for a translation
-  ensError: { type: 'text', defaultValue: 'loading' },
-};
-
 ErrorStory.storyName = 'Error';
+ErrorStory.args = {
+  // domainError must be the key for a translation
+  domainError: 'loading',
+};
 
 export const WarningStory = (args) => {
   return (
@@ -113,10 +108,8 @@ export const WarningStory = (args) => {
     </div>
   );
 };
-
-WarningStory.argTypes = {
-  // ensWarning must be the key for a translation
-  ensWarning: { type: 'text', defaultValue: 'loading' },
-};
-
 WarningStory.storyName = 'Warning';
+WarningStory.args = {
+  // domainWarning must be the key for a translation
+  domainWarning: 'loading',
+};

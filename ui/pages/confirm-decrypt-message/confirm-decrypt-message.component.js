@@ -2,16 +2,22 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import copyToClipboard from 'copy-to-clipboard';
 import classnames from 'classnames';
+import log from 'loglevel';
 
 import AccountListItem from '../../components/app/account-list-item';
-import Button from '../../components/ui/button';
 import Identicon from '../../components/ui/identicon';
 import Tooltip from '../../components/ui/tooltip';
-import Copy from '../../components/ui/icon/copy-icon.component';
+import { PageContainerFooter } from '../../components/ui/page-container';
 
-import { EVENT } from '../../../shared/constants/metametrics';
+import { MetaMetricsEventCategory } from '../../../shared/constants/metametrics';
 import { SECOND } from '../../../shared/constants/time';
-import { conversionUtil } from '../../../shared/modules/conversion.utils';
+import { Numeric } from '../../../shared/modules/Numeric';
+import { EtherDenomination } from '../../../shared/constants/common';
+import { Icon, IconName } from '../../components/component-library';
+import { IconColor } from '../../helpers/constants/design-system';
+import { formatCurrency } from '../../helpers/utils/confirm-tx.util';
+import { getValueFromWeiHex } from '../../../shared/modules/conversion.utils';
+import { COPY_OPTIONS } from '../../../shared/constants/copy';
 
 export default class ConfirmDecryptMessage extends Component {
   static contextTypes = {
@@ -29,24 +35,25 @@ export default class ConfirmDecryptMessage extends Component {
     cancelDecryptMessage: PropTypes.func.isRequired,
     decryptMessage: PropTypes.func.isRequired,
     decryptMessageInline: PropTypes.func.isRequired,
-    conversionRate: PropTypes.number,
     history: PropTypes.object.isRequired,
     mostRecentOverviewPage: PropTypes.string.isRequired,
     requesterAddress: PropTypes.string,
     txData: PropTypes.object,
     subjectMetadata: PropTypes.object,
+    nativeCurrency: PropTypes.string.isRequired,
+    currentCurrency: PropTypes.string.isRequired,
+    conversionRate: PropTypes.number,
   };
 
   state = {
-    fromAccount: this.props.fromAccount,
     copyToClipboardPressed: false,
     hasCopied: false,
   };
 
   copyMessage = () => {
-    copyToClipboard(this.state.rawMessage);
+    copyToClipboard(this.state.rawMessage, COPY_OPTIONS);
     this.context.trackEvent({
-      category: EVENT.CATEGORIES.MESSAGES,
+      category: MetaMetricsEventCategory.Messages,
       event: 'Copy',
       properties: {
         action: 'Decrypt Message Copy',
@@ -74,7 +81,7 @@ export default class ConfirmDecryptMessage extends Component {
   };
 
   renderAccount = () => {
-    const { fromAccount } = this.state;
+    const { fromAccount } = this.props;
     const { t } = this.context;
 
     return (
@@ -91,19 +98,31 @@ export default class ConfirmDecryptMessage extends Component {
   };
 
   renderBalance = () => {
-    const { conversionRate } = this.props;
     const {
+      conversionRate,
+      nativeCurrency,
+      currentCurrency,
       fromAccount: { balance },
-    } = this.state;
+    } = this.props;
     const { t } = this.context;
 
-    const balanceInEther = conversionUtil(balance, {
-      fromNumericBase: 'hex',
-      toNumericBase: 'dec',
-      fromDenomination: 'WEI',
-      numberOfDecimals: 6,
-      conversionRate,
-    });
+    const nativeCurrencyBalance = conversionRate
+      ? formatCurrency(
+          getValueFromWeiHex({
+            value: balance,
+            fromCurrency: nativeCurrency,
+            toCurrency: currentCurrency,
+            conversionRate,
+            numberOfDecimals: 6,
+            toDenomination: EtherDenomination.ETH,
+          }),
+          currentCurrency,
+        )
+      : new Numeric(balance, 16, EtherDenomination.WEI)
+          .toDenomination(EtherDenomination.ETH)
+          .round(6)
+          .toBase(10)
+          .toString();
 
     return (
       <div className="request-decrypt-message__balance">
@@ -111,7 +130,9 @@ export default class ConfirmDecryptMessage extends Component {
           {`${t('balance')}:`}
         </div>
         <div className="request-decrypt-message__balance-value">
-          {`${balanceInEther} ETH`}
+          {`${nativeCurrencyBalance} ${
+            conversionRate ? currentCurrency?.toUpperCase() : nativeCurrency
+          }`}
         </div>
       </div>
     );
@@ -201,7 +222,7 @@ export default class ConfirmDecryptMessage extends Component {
                 } else {
                   this.setState({
                     hasDecrypted: true,
-                    rawMessage: result.rawData,
+                    rawMessage: result.rawSig,
                   });
                 }
               });
@@ -219,7 +240,8 @@ export default class ConfirmDecryptMessage extends Component {
           <div
             className={classnames({
               'request-decrypt-message__message-copy': true,
-              'request-decrypt-message__message-copy--pressed': copyToClipboardPressed,
+              'request-decrypt-message__message-copy--pressed':
+                copyToClipboardPressed,
             })}
             onClick={() => this.copyMessage()}
             onMouseDown={() => this.setState({ copyToClipboardPressed: true })}
@@ -234,11 +256,14 @@ export default class ConfirmDecryptMessage extends Component {
               <div className="request-decrypt-message__message-copy-text">
                 {t('decryptCopy')}
               </div>
-              <Copy size={17} color="var(--color-primary-default)" />
+              <Icon
+                name={hasCopied ? IconName.CopySuccess : IconName.Copy}
+                color={IconColor.primaryDefault}
+              />
             </Tooltip>
           </div>
         ) : (
-          <div></div>
+          <div />
         )}
       </div>
     );
@@ -256,52 +281,45 @@ export default class ConfirmDecryptMessage extends Component {
     const { trackEvent, t } = this.context;
 
     return (
-      <div className="request-decrypt-message__footer">
-        <Button
-          type="secondary"
-          large
-          className="request-decrypt-message__footer__cancel-button"
-          onClick={async (event) => {
-            await cancelDecryptMessage(txData, event);
-            trackEvent({
-              category: EVENT.CATEGORIES.MESSAGES,
-              event: 'Cancel',
-              properties: {
-                action: 'Decrypt Message Request',
-                legacy_event: true,
-              },
-            });
-            clearConfirmTransaction();
-            history.push(mostRecentOverviewPage);
-          }}
-        >
-          {t('cancel')}
-        </Button>
-        <Button
-          type="primary"
-          large
-          className="request-decrypt-message__footer__sign-button"
-          onClick={async (event) => {
-            await decryptMessage(txData, event);
-            trackEvent({
-              category: EVENT.CATEGORIES.MESSAGES,
-              event: 'Confirm',
-              properties: {
-                action: 'Decrypt Message Request',
-                legacy_event: true,
-              },
-            });
-            clearConfirmTransaction();
-            history.push(mostRecentOverviewPage);
-          }}
-        >
-          {t('decrypt')}
-        </Button>
-      </div>
+      <PageContainerFooter
+        cancelText={t('cancel')}
+        submitText={t('decrypt')}
+        onCancel={async (event) => {
+          await cancelDecryptMessage(txData, event);
+          trackEvent({
+            category: MetaMetricsEventCategory.Messages,
+            event: 'Cancel',
+            properties: {
+              action: 'Decrypt Message Request',
+              legacy_event: true,
+            },
+          });
+          clearConfirmTransaction();
+          history.push(mostRecentOverviewPage);
+        }}
+        onSubmit={async (event) => {
+          await decryptMessage(txData, event);
+          trackEvent({
+            category: MetaMetricsEventCategory.Messages,
+            event: 'Confirm',
+            properties: {
+              action: 'Decrypt Message Request',
+              legacy_event: true,
+            },
+          });
+          clearConfirmTransaction();
+          history.push(mostRecentOverviewPage);
+        }}
+      />
     );
   };
 
   render = () => {
+    if (!this.props.txData) {
+      log.warn('ConfirmDecryptMessage Page: Missing txData prop.');
+      return null;
+    }
+
     return (
       <div className="request-decrypt-message__container">
         {this.renderHeader()}

@@ -1,12 +1,15 @@
 /* eslint-disable react/prop-types */
 
 import React, { useState } from 'react';
+import Tooltip from '../tooltip';
+
+import { Icon, IconName, Text } from '../../component-library';
+import { AlignItems } from '../../../helpers/constants/design-system';
 import README from './README.mdx';
 import FormField from '.';
 
 export default {
   title: 'Components/UI/FormField',
-  id: __filename,
   component: FormField,
   parameters: {
     docs: {
@@ -65,7 +68,7 @@ export const FormFieldWithTitleDetail = (args) => {
         Click Me
       </button>
     ),
-    checkmark: <i className="fas fa-check" />,
+    checkmark: <Icon name={IconName.Check} />,
   };
 
   return <FormField {...args} titleDetail={detailOptions[args.titleDetail]} />;
@@ -83,4 +86,30 @@ export const FormFieldWithError = (args) => {
 FormFieldWithError.args = {
   titleText: 'Title',
   error: 'Incorrect Format',
+};
+
+export const CustomComponents = (args) => {
+  return (
+    <div style={{ width: '600px' }}>
+      <FormField
+        {...args}
+        titleHeadingWrapperProps={{ alignItems: AlignItems.center }}
+        TitleTextCustomComponent={<Text>TitleTextCustomComponent</Text>}
+        TitleUnitCustomComponent={
+          <Text marginLeft={2}>TitleUnitCustomComponent</Text>
+        }
+        TooltipCustomComponent={
+          <Tooltip
+            interactive
+            position="top"
+            html={<Text>Custom tooltip</Text>}
+          >
+            <Icon name={IconName.Question} marginLeft={2} />
+          </Tooltip>
+        }
+        titleDetail={<Text>TitleDetail</Text>}
+        titleDetailWrapperProps={{ marginBottom: 0 }}
+      />
+    </div>
+  );
 };

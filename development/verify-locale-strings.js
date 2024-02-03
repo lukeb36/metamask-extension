@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // //////////////////////////////////////////////////////////////////////////////
 //
 // Locale verification script
@@ -95,6 +96,7 @@ async function main() {
   }
 }
 
+// eslint-disable-next-line consistent-return
 async function writeLocale(code, locale) {
   try {
     const localeFilePath = getLocalePath(code);
@@ -172,17 +174,35 @@ async function verifyEnglishLocale() {
   // and gradually phase out the key based search
   const globsToStrictSearch = [
     'ui/components/app/metamask-translation/*.js',
+    'ui/components/app/metamask-translation/*.ts',
     'ui/pages/confirmation/templates/*.js',
+    'ui/pages/confirmation/templates/*.ts',
   ];
   const testGlob = '**/*.test.js';
-  const javascriptFiles = await glob(['ui/**/*.js', 'shared/**/*.js'], {
-    ignore: [...globsToStrictSearch, testGlob],
-  });
+  const javascriptFiles = await glob(
+    [
+      'ui/**/*.js',
+      'ui/**/*.ts',
+      'ui/**/*.tsx',
+      'shared/**/*.js',
+      'shared/**/*.ts',
+      'shared/**/*.tsx',
+      'app/scripts/lib/**/*.js',
+      'app/scripts/lib/**/*.ts',
+      'app/scripts/constants/**/*.js',
+      'app/scripts/constants/**/*.ts',
+      'app/scripts/platforms/**/*.js',
+    ],
+    {
+      ignore: [...globsToStrictSearch, testGlob],
+    },
+  );
   const javascriptFilesToStrictSearch = await glob(globsToStrictSearch, {
     ignore: [testGlob],
   });
 
-  const strictSearchRegex = /\bt\(\s*'(\w+)'\s*\)|\btranslationKey:\s*'(\w+)'/gu;
+  const strictSearchRegex =
+    /\bt\(\s*'(\w+)'\s*\)|\btranslationKey:\s*'(\w+)'/gu;
   // match "t(`...`)" because constructing message keys from template strings
   // prevents this script from finding the messages, and then inappropriately
   // deletes them
@@ -220,7 +240,10 @@ async function verifyEnglishLocale() {
     'appName',
     'appNameBeta',
     'appNameFlask',
+    'appNameMmi',
     'appDescription',
+    'rejected',
+    'signed',
   ];
 
   const englishMessages = Object.keys(englishLocale);

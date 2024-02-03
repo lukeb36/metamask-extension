@@ -1,4 +1,4 @@
-import EventEmitter from 'safe-event-emitter';
+import EventEmitter from '@metamask/safe-event-emitter';
 import ExtensionPlatform from '../platforms/extension';
 
 const NOTIFICATION_HEIGHT = 620;
@@ -32,22 +32,31 @@ export default class NotificationManager extends EventEmitter {
    * Either brings an existing MetaMask notification window into focus, or creates a new notification window. New
    * notification windows are given a 'popup' type.
    *
+   * @param {Function} setCurrentPopupId - setter of current popup id from appStateController
+   * @param {number} currentPopupId - id of current opened metamask popup window
    */
-  async showPopup() {
-    const popup = await this._getPopup();
-
+  async showPopup(setCurrentPopupId, currentPopupId) {
+    this._popupId = currentPopupId;
+    this._setCurrentPopupId = setCurrentPopupId;
+    const popup = await this._getPopup(currentPopupId);
     // Bring focus to chrome popup
     if (popup) {
       // bring focus to existing chrome popup
       await this.platform.focusWindow(popup.id);
     } else {
+      // create new notification popup
       let left = 0;
       let top = 0;
       try {
         const lastFocused = await this.platform.getLastFocusedWindow();
         // Position window in top right corner of lastFocused window.
         top = lastFocused.top;
-        left = lastFocused.left + (lastFocused.width - NOTIFICATION_WIDTH);
+        // - this is to make sure no error is triggered from polyfill
+        // error eg: Invalid value for bounds. Bounds must be at least 50% within visible screen space.
+        left = Math.max(
+          lastFocused.left + (lastFocused.width - NOTIFICATION_WIDTH),
+          0,
+        );
       } catch (_) {
         // The following properties are more than likely 0, due to being
         // opened from the background chrome process for the extension that
@@ -57,7 +66,6 @@ export default class NotificationManager extends EventEmitter {
         left = Math.max(screenX + (outerWidth - NOTIFICATION_WIDTH), 0);
       }
 
-      // create new notification popup
       const popupWindow = await this.platform.openWindow({
         url: 'notification.html',
         type: 'popup',
@@ -71,12 +79,16 @@ export default class NotificationManager extends EventEmitter {
       if (popupWindow.left !== left && popupWindow.state !== 'fullscreen') {
         await this.platform.updateWindowPosition(popupWindow.id, left, top);
       }
+      // pass new created popup window id to appController setter
+      // and store the id to private variable this._popupId for future access
+      this._setCurrentPopupId(popupWindow.id);
       this._popupId = popupWindow.id;
     }
   }
 
   _onWindowClosed(windowId) {
     if (windowId === this._popupId) {
+      this._setCurrentPopupId(undefined);
       this._popupId = undefined;
       this.emit(NOTIFICATION_MANAGER_EVENTS.POPUP_CLOSED, {
         automaticallyClosed: this._popupAutomaticallyClosed,

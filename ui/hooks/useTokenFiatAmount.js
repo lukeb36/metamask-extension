@@ -4,6 +4,7 @@ import {
   getTokenExchangeRates,
   getCurrentCurrency,
   getShouldShowFiat,
+  getConfirmationExchangeRates,
 } from '../selectors';
 import { getTokenFiatAmount } from '../helpers/utils/token-util';
 import { getConversionRate } from '../ducks/metamask/metamask';
@@ -15,7 +16,7 @@ import { isEqualCaseInsensitive } from '../../shared/modules/string-utils';
  * @param {string} [tokenAddress] - The token address
  * @param {string} [tokenAmount] - The token balance
  * @param {string} [tokenSymbol] - The token symbol
- * @param {Object} [overrides] - A configuration object that allows the caller to explicitly pass an exchange rate or
+ * @param {object} [overrides] - A configuration object that allows the caller to explicitly pass an exchange rate or
  *                              ensure fiat is shown even if the property is not set in state.
  * @param {number} [overrides.exchangeRate] -  An exhchange rate to use instead of the one selected from state
  * @param {boolean} [overrides.showFiat] - If truthy, ensures the fiat value is shown even if the showFiat value from state is falsey
@@ -33,17 +34,21 @@ export function useTokenFiatAmount(
     getTokenExchangeRates,
     shallowEqual,
   );
+  const confirmationExchangeRates = useSelector(getConfirmationExchangeRates);
+  const mergedRates = {
+    ...contractExchangeRates,
+    ...confirmationExchangeRates,
+  };
   const conversionRate = useSelector(getConversionRate);
   const currentCurrency = useSelector(getCurrentCurrency);
   const userPrefersShownFiat = useSelector(getShouldShowFiat);
   const showFiat = overrides.showFiat ?? userPrefersShownFiat;
-  const contractExchangeTokenKey = Object.keys(
-    contractExchangeRates,
-  ).find((key) => isEqualCaseInsensitive(key, tokenAddress));
+  const contractExchangeTokenKey = Object.keys(mergedRates).find((key) =>
+    isEqualCaseInsensitive(key, tokenAddress),
+  );
   const tokenExchangeRate =
     overrides.exchangeRate ??
-    (contractExchangeTokenKey &&
-      contractExchangeRates[contractExchangeTokenKey]);
+    (contractExchangeTokenKey && mergedRates[contractExchangeTokenKey]);
   const formattedFiat = useMemo(
     () =>
       getTokenFiatAmount(

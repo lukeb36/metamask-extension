@@ -1,7 +1,5 @@
 .edit-gas-popover {
-  &__wrapper {
-    @media screen and (min-width: $break-large) {
-      max-height: 84vh;
-    }
+  &__edit-gas-display {
+    position: relative;
   }
 }

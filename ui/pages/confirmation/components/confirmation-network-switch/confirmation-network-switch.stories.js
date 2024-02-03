@@ -2,17 +2,26 @@ import React from 'react';
 import ConfirmationNetworkSwitch from '.';
 
 export default {
-  title: 'Components/Pages/Confirmation/Components/ConfirmationNetworkSwitch', // ui/pages/confirmation/components/confirmation-network-switch/confirmation-network-switch.js
-  id: __filename,
+  title: 'Pages/Confirmation/Components/ConfirmationNetworkSwitch',
   argTypes: {
-    newNetwork: {
+    toNetwork: {
+      controls: 'object',
+    },
+    fromNetwork: {
       controls: 'object',
     },
   },
   args: {
-    newNetwork: {
-      chainId: 'chainId',
-      name: 'Binance Smart Chain Mainnet',
+    toNetwork: {
+      chainId: '0xa',
+      ticker: 'OP',
+      nickname: 'Optimism',
+      rpcUrl: 'https://optimism-mainnet.infura.io',
+    },
+    fromNetwork: {
+      chainId: '1',
+      ticker: 'ETH',
+      nickname: 'Ethereum Mainnet',
     },
   },
 };

@@ -1,8 +1,9 @@
 import React from 'react';
 import configureMockStore from 'redux-mock-store';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import { fireEvent } from '@testing-library/react';
 import { renderWithProvider } from '../../../test/lib/render-helpers';
-import Identicon from '../../components/ui/identicon/identicon.component';
+import Identicon from '../../components/ui/identicon';
 import { isEqualCaseInsensitive } from '../../../shared/modules/string-utils';
 import TokenDetailsPage from './token-details-page';
 
@@ -10,6 +11,24 @@ const testTokenAddress = '0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F';
 const state = {
   metamask: {
     selectedAddress: '0xAddress',
+    internalAccounts: {
+      accounts: {
+        'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3': {
+          address: '0xAddress',
+          id: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+          metadata: {
+            name: 'Test Account',
+            keyring: {
+              type: 'HD Key Tree',
+            },
+          },
+          options: {},
+          methods: [...Object.values(EthMethod)],
+          type: EthAccountType.Eoa,
+        },
+      },
+      selectedAccount: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+    },
     contractExchangeRates: {
       '0xAnotherToken': 0.015,
     },
@@ -209,10 +228,11 @@ const state = {
         symbol: 'UMA',
       },
     },
-    provider: {
+    providerConfig: {
       type: 'mainnet',
       nickname: '',
     },
+    currencyRates: {},
     preferences: {
       showFiatInTestnets: true,
     },
@@ -276,7 +296,7 @@ describe('TokenDetailsPage', () => {
   it('should render token contract address title in token details page', () => {
     const store = configureMockStore()(state);
     const { getByText } = renderWithProvider(<TokenDetailsPage />, store);
-    expect(getByText('Token Contract Address')).toBeInTheDocument();
+    expect(getByText('Token contract address')).toBeInTheDocument();
   });
 
   it('should render token contract address in token details page', () => {
@@ -296,7 +316,7 @@ describe('TokenDetailsPage', () => {
   it('should render token decimal title in token details page', () => {
     const store = configureMockStore()(state);
     const { getByText } = renderWithProvider(<TokenDetailsPage />, store);
-    expect(getByText('Token Decimal:')).toBeInTheDocument();
+    expect(getByText('Token decimal:')).toBeInTheDocument();
   });
 
   it('should render number of token decimals in token details page', () => {
@@ -318,15 +338,12 @@ describe('TokenDetailsPage', () => {
   });
 
   it('should render token list title in token details page', () => {
-    process.env.TOKEN_DETECTION_V2 = true;
     const store = configureMockStore()(state);
     const { getByText } = renderWithProvider(<TokenDetailsPage />, store);
     expect(getByText('Token lists:')).toBeInTheDocument();
-    process.env.TOKEN_DETECTION_V2 = false;
   });
 
   it('should render token list for the token in token details page', () => {
-    process.env.TOKEN_DETECTION_V2 = true;
     const store = configureMockStore()(state);
     const { getByText } = renderWithProvider(<TokenDetailsPage />, store);
     expect(
@@ -334,7 +351,6 @@ describe('TokenDetailsPage', () => {
         'Aave, Bancor, CMC, Crypto.com, CoinGecko, 1inch, Paraswap, PMM, Synthetix, Zapper, Zerion, 0x.',
       ),
     ).toBeInTheDocument();
-    process.env.TOKEN_DETECTION_V2 = false;
   });
 
   it('should call hide token button when button is clicked in token details page', () => {

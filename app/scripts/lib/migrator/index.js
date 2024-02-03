@@ -1,13 +1,14 @@
 import EventEmitter from 'events';
+import log from 'loglevel';
 
 /**
- * @typedef {Object} Migration
+ * @typedef {object} Migration
  * @property {number} version - The migration version
  * @property {Function} migrate - Returns a promise of the migrated data
  */
 
 /**
- * @typedef {Object} MigratorOptions
+ * @typedef {object} MigratorOptions
  * @property {Array<Migration>} [migrations] - The list of migrations to apply
  * @property {number} [defaultVersion] - The version to use in the initial state
  */
@@ -36,6 +37,8 @@ export default class Migrator extends EventEmitter {
     // perform each migration
     for (const migration of pendingMigrations) {
       try {
+        log.info(`Running migration ${migration.version}...`);
+
         // attempt migration and validate
         const migratedData = await migration.migrate(versionedData);
         if (!migratedData.data) {
@@ -52,6 +55,8 @@ export default class Migrator extends EventEmitter {
         // accept the migration as good
         // eslint-disable-next-line no-param-reassign
         versionedData = migratedData;
+
+        log.info(`Migration ${migration.version} complete`);
       } catch (err) {
         // rewrite error message to add context without clobbering stack
         const originalErrorMessage = err.message;
@@ -82,7 +87,7 @@ export default class Migrator extends EventEmitter {
   /**
    * Returns the initial state for the migrator
    *
-   * @param {Object} [data] - The data for the initial state
+   * @param {object} [data] - The data for the initial state
    * @returns {{meta: {version: number}, data: any}}
    */
   generateInitialState(data) {

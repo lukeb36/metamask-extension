@@ -10,39 +10,35 @@ const t = (key) => {
     case 'general':
       return 'General';
     case 'currencyConversion':
-      return 'Currency Conversion';
+      return 'Currency conversion';
     case 'primaryCurrencySetting':
-      return 'Primary Currency';
+      return 'Primary currency';
     case 'primaryCurrencySettingDescription':
       return 'Select native to prioritize displaying values in the native currency of the chain (e.g. ETH). Select Fiat to prioritize displaying values in your selected fiat currency.';
     case 'currentLanguage':
-      return 'Current Language';
+      return 'Current language';
     case 'accountIdenticon':
-      return 'Current Language"';
+      return 'Current language"';
     case 'hideZeroBalanceTokens':
-      return 'Hide Tokens Without Balance';
+      return 'Hide tokens without balance';
     case 'advanced':
       return 'Advanced';
     case 'stateLogs':
-      return 'State Logs';
+      return 'State logs';
     case 'stateLogsDescription':
       return 'State logs contain your public account addresses and sent transactions.';
-    case 'syncWithMobile':
-      return 'Sync with mobile';
-    case 'resetAccount':
-      return 'Reset Account';
-    case 'resetAccountDescription':
-      return 'Resetting your account will clear your transaction history. This will not change the balances in your accounts or require you to re-enter your Secret Recovery Phrase.';
-    case 'showAdvancedGasInline':
-      return 'Advanced gas controls';
+    case 'clearActivity':
+      return 'Clear activity and nonce data';
+    case 'clearActivityDescription':
+      return "This resets the account's nonce and erases data from the activity tab in your wallet. Only the current account and network will be affected. Your balances and incoming transactions won't change.";
     case 'showAdvancedGasInlineDescription':
       return 'Select this to show gas price and limit controls directly on the send and confirm screens.';
     case 'showHexData':
-      return 'Show Hex Data';
+      return 'Show hex data';
     case 'showHexDataDescription':
       return 'Select this to show the hex data field on the send screen';
     case 'showFiatConversionInTestnets':
-      return 'Show Conversion on test networks';
+      return 'Show conversion on test networks';
     case 'showFiatConversionInTestnetsDescription':
       return 'Select this to show fiat conversion on test network';
     case 'showTestnetNetworks':
@@ -54,19 +50,13 @@ const t = (key) => {
     case 'nonceFieldDescription':
       return 'Turn this on to change the nonce (transaction number) on confirmation screens. This is an advanced feature, use cautiously.';
     case 'autoLockTimeLimit':
-      return 'Auto-Lock Timer (minutes)';
+      return 'Auto-lock timer (minutes)';
     case 'autoLockTimeLimitDescription':
       return 'Set the idle time in minutes before MetaMask will become locked.';
-    case 'syncWithThreeBox':
-      return 'Sync data with 3Box (experimental)';
-    case 'syncWithThreeBoxDescription':
-      return 'Turn on to have your settings backed up with 3Box. This feature is currently experimental; use at your own risk.';
     case 'ipfsGateway':
       return 'IPFS Gateway';
     case 'ipfsGatewayDescription':
       return 'Enter the URL of the IPFS CID gateway to use for ENS content resolution.';
-    case 'preferredLedgerConnectionType':
-      return 'Preferred Ledger Connection Type';
     case 'dismissReminderField':
       return 'Dismiss Secret Recovery Phrase backup reminder';
     case 'dismissReminderDescriptionField':
@@ -74,15 +64,13 @@ const t = (key) => {
     case 'Contacts':
       return 'Contacts';
     case 'securityAndPrivacy':
-      return 'Security & Privacy';
+      return 'Security & privacy';
     case 'revealSeedWords':
       return 'Reveal Secret Recovery Phrase';
     case 'showIncomingTransactions':
-      return 'Show Incoming Transactions';
-    case 'showIncomingTransactionsDescription':
-      return 'Select this to use Etherscan to show incoming transactions in the transactions list';
+      return 'Show incoming transactions';
     case 'usePhishingDetection':
-      return 'Use Phishing Detection';
+      return 'Use phishing detection';
     case 'usePhishingDetectionDescription':
       return 'Display a warning for phishing domains targeting Ethereum users';
     case 'participateInMetaMetrics':
@@ -99,38 +87,25 @@ const t = (key) => {
       return 'Networks';
     case 'mainnet':
       return 'Ethereum Mainnet';
-    case 'ropsten':
-      return 'Ropsten Test Network';
-    case 'rinkeby':
-      return 'Rinkeby Test Network';
     case 'goerli':
-      return 'Goerli Test Network';
-    case 'kovan':
-      return 'Kovan Test Network';
+      return 'Goerli test network';
+    case 'sepolia':
+      return 'Sepolia test network';
     case 'localhost':
       return 'Localhost 8545';
     case 'experimental':
       return 'Experimental';
-    /** TODO: Remove during TOKEN_DETECTION_V2 feature flag clean up */
-    case 'useTokenDetection':
-      return 'Use Token Detection';
-    case 'useTokenDetectionDescription':
-      return 'We use third-party APIs to detect and display new tokens sent to your wallet. Turn off if you don’t want MetaMask to pull data from those services.';
-    case 'tokenDetection':
-      return 'Token detection';
-    case 'tokenDetectionToggleDescription':
-      return 'ConsenSys’ token API aggregates a list of tokens from various third party token lists. Turning it off will stop detecting new tokens added to your wallet, but will keep the option to search for tokens to import.';
-    case 'enableEIP1559V2':
-      return 'Enable Enhanced Gas Fee UI';
-    case 'enableEIP1559V2Description':
-      return "We've updated how gas estimation and customization works. Turn on if you'd like to use the new gas experience. Learn more";
-    case 'enableOpenSeaAPI':
-      return 'Enable OpenSea API';
-    case 'enableOpenSeaAPIDescription':
-      return "Use OpenSea's API to fetch NFT data. NFT auto-detection relies on OpenSea's API, and will not be available when this is turned off.";
-    case 'useCollectibleDetection':
+    case 'autoDetectTokens':
+      return 'Autodetect tokens';
+    case 'autoDetectTokensDescription':
+      return 'We use third-party APIs to detect and display new tokens sent to your wallet. Turn off if you don’t want the app to pull data from those services.';
+    case 'displayNftMedia':
+      return 'Display NFT media';
+    case 'displayNftMediaDescription':
+      return "Displaying NFT media and data exposes your IP address to OpenSea or other third parties. This can allow attackers to associate your IP address with your Ethereum address. NFT autodetection relies on this setting, and won't be available when this is turned off.";
+    case 'useNftDetection':
       return 'Autodetect NFTs';
-    case 'useCollectibleDetectionDescription':
+    case 'useNftDetectionDescriptionText':
       return 'Displaying NFTs media & data may expose your IP address to centralized servers. Third-party APIs (like OpenSea) are used to detect NFTs in your wallet. This exposes your account address with those services. Leave this disabled if you don’t want the app to pull data from those those services.';
     case 'about':
       return 'About';
@@ -141,19 +116,23 @@ const t = (key) => {
     case 'links':
       return 'Links';
     case 'privacyMsg':
-      return 'Privacy Policy';
+      return 'Privacy policy';
     case 'terms':
-      return 'Terms of Use';
+      return 'Terms of use';
     case 'attributions':
       return 'Attributions';
     case 'supportCenter':
-      return 'Visit our Support Center';
+      return 'Visit our support center';
     case 'visitWebSite':
       return 'Visit our web site';
     case 'contactUs':
       return 'Contact us';
     case 'snaps':
       return 'Snaps';
+    case 'currencyRateCheckToggle':
+      return 'Show balance and token price checker';
+    case 'currencyRateCheckToggleDescription':
+      return 'We use Coingecko and CryptoCompare APIs to display your balance and token price. Privacy Policy';
     default:
       return '';
   }
@@ -168,11 +147,11 @@ describe('Settings Search Utils', () => {
 
   describe('getNumberOfSettingsInSection', () => {
     it('should get good general section number', () => {
-      expect(getNumberOfSettingsInSection(t, t('general'))).toStrictEqual(5);
+      expect(getNumberOfSettingsInSection(t, t('general'))).toStrictEqual(6);
     });
 
     it('should get good advanced section number', () => {
-      expect(getNumberOfSettingsInSection(t, t('advanced'))).toStrictEqual(13);
+      expect(getNumberOfSettingsInSection(t, t('advanced'))).toStrictEqual(12);
     });
 
     it('should get good contact section number', () => {
@@ -182,7 +161,7 @@ describe('Settings Search Utils', () => {
     it('should get good security & privacy section number', () => {
       expect(
         getNumberOfSettingsInSection(t, t('securityAndPrivacy')),
-      ).toStrictEqual(4);
+      ).toStrictEqual(13);
     });
 
     it('should get good alerts section number', () => {
@@ -195,12 +174,12 @@ describe('Settings Search Utils', () => {
 
     it('should get good experimental section number', () => {
       expect(getNumberOfSettingsInSection(t, t('experimental'))).toStrictEqual(
-        3,
+        1,
       );
     });
 
     it('should get good about section number', () => {
-      expect(getNumberOfSettingsInSection(t, t('about'))).toStrictEqual(8);
+      expect(getNumberOfSettingsInSection(t, t('about'))).toStrictEqual(9);
     });
   });
 

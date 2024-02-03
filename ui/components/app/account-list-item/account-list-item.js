@@ -10,12 +10,22 @@ export default function AccountListItem({
   displayAddress = false,
   handleClick,
   icon = null,
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  hideDefaultMismatchWarning = false,
+  ///: END:ONLY_INCLUDE_IF
 }) {
   const { name, address, balance } = account || {};
+
+  let showDefaultMismatchWarning = true;
+
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  showDefaultMismatchWarning = !hideDefaultMismatchWarning;
+  ///: END:ONLY_INCLUDE_IF
 
   return (
     <div
       className={`account-list-item ${className}`}
+      data-testid="account-list-item"
       onClick={() => handleClick?.({ name, address, balance })}
     >
       <div className="account-list-item__top-row">
@@ -25,10 +35,18 @@ export default function AccountListItem({
           diameter={18}
         />
         <div className="account-list-item__account-name">{name || address}</div>
-        {icon ? <div className="account-list-item__icon">{icon}</div> : null}
-        <AccountMismatchWarning address={address} />
+        {icon ? (
+          <div
+            className="account-list-item__icon"
+            data-testid="account-list-item-icon"
+          >
+            {icon}
+          </div>
+        ) : null}
+        {showDefaultMismatchWarning && (
+          <AccountMismatchWarning address={address} />
+        )}
       </div>
-
       {displayAddress && name && (
         <div className="account-list-item__account-address">
           {toChecksumHexAddress(address)}
@@ -63,4 +81,10 @@ AccountListItem.propTypes = {
    * Pass icon component to be displayed. Currently not used
    */
   icon: PropTypes.node,
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  /**
+   * MMI Prop, will hide the default AccountMismatchWarning when needed
+   */
+  hideDefaultMismatchWarning: PropTypes.bool,
+  ///: END:ONLY_INCLUDE_IF
 };

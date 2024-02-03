@@ -1,8 +1,7 @@
-import {
-  KOVAN_CHAIN_ID,
-  MAINNET_CHAIN_ID,
-} from '../../shared/constants/network';
-import { TRANSACTION_STATUSES } from '../../shared/constants/transaction';
+import { ApprovalType } from '@metamask/controller-utils';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import { CHAIN_IDS } from '../../shared/constants/network';
 import {
   unapprovedMessagesSelector,
   transactionsSelector,
@@ -10,6 +9,8 @@ import {
   nonceSortedPendingTransactionsSelector,
   nonceSortedCompletedTransactionsSelector,
   submittedPendingTransactionsSelector,
+  hasTransactionPendingApprovals,
+  getApprovedAndSignedTransactions,
 } from './transactions';
 
 describe('Transaction Selectors', () => {
@@ -23,7 +24,7 @@ describe('Transaction Selectors', () => {
           origin: 'origin',
         },
         time: 1,
-        status: TRANSACTION_STATUSES.UNAPPROVED,
+        status: TransactionStatus.unapproved,
         type: 'eth_sign',
       };
 
@@ -32,8 +33,26 @@ describe('Transaction Selectors', () => {
           unapprovedMsgs: {
             1: msg,
           },
-          provider: {
-            chainId: KOVAN_CHAIN_ID,
+          providerConfig: {
+            chainId: '0x5',
+          },
+          internalAccounts: {
+            accounts: {
+              'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3': {
+                address: '0xAddress',
+                id: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+                metadata: {
+                  name: 'Test Account',
+                  keyring: {
+                    type: 'HD Key Tree',
+                  },
+                },
+                options: {},
+                methods: [...Object.values(EthMethod)],
+                type: EthAccountType.Eoa,
+              },
+            },
+            selectedAccount: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
           },
         },
       };
@@ -53,7 +72,7 @@ describe('Transaction Selectors', () => {
           origin: 'origin',
         },
         time: 1,
-        status: TRANSACTION_STATUSES.UNAPPROVED,
+        status: TransactionStatus.unapproved,
         type: 'personal_sign',
       };
 
@@ -62,8 +81,8 @@ describe('Transaction Selectors', () => {
           unapprovedPersonalMsgs: {
             1: msg,
           },
-          provider: {
-            chainId: KOVAN_CHAIN_ID,
+          providerConfig: {
+            chainId: '0x5',
           },
         },
       };
@@ -84,7 +103,7 @@ describe('Transaction Selectors', () => {
           origin: 'origin',
         },
         time: 1,
-        status: TRANSACTION_STATUSES.UNAPPROVED,
+        status: TransactionStatus.unapproved,
         type: 'eth_signTypedData',
       };
 
@@ -93,8 +112,8 @@ describe('Transaction Selectors', () => {
           unapprovedTypedMessages: {
             1: msg,
           },
-          provider: {
-            chainId: KOVAN_CHAIN_ID,
+          providerConfig: {
+            chainId: '0x5',
           },
         },
       };
@@ -107,20 +126,37 @@ describe('Transaction Selectors', () => {
   });
 
   describe('transactionsSelector', () => {
-    it('selects the currentNetworkTxList', () => {
+    it('selects the current network transactions', () => {
       const state = {
         metamask: {
-          provider: {
+          providerConfig: {
             nickname: 'mainnet',
-            chainId: MAINNET_CHAIN_ID,
+            chainId: CHAIN_IDS.MAINNET,
           },
-          featureFlags: {
-            showIncomingTransactions: false,
-          },
+          featureFlags: {},
           selectedAddress: '0xAddress',
-          currentNetworkTxList: [
+          internalAccounts: {
+            accounts: {
+              'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3': {
+                address: '0xAddress',
+                id: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+                metadata: {
+                  name: 'Test Account',
+                  keyring: {
+                    type: 'HD Key Tree',
+                  },
+                },
+                options: {},
+                methods: [...Object.values(EthMethod)],
+                type: EthAccountType.Eoa,
+              },
+            },
+            selectedAccount: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+          },
+          transactions: [
             {
               id: 0,
+              chainId: CHAIN_IDS.MAINNET,
               time: 0,
               txParams: {
                 from: '0xAddress',
@@ -129,6 +165,7 @@ describe('Transaction Selectors', () => {
             },
             {
               id: 1,
+              chainId: CHAIN_IDS.MAINNET,
               time: 1,
               txParams: {
                 from: '0xAddress',
@@ -139,7 +176,73 @@ describe('Transaction Selectors', () => {
         },
       };
 
-      const orderedTxList = state.metamask.currentNetworkTxList.sort(
+      const orderedTxList = state.metamask.transactions.sort(
+        (a, b) => b.time - a.time,
+      );
+
+      const selectedTx = transactionsSelector(state);
+
+      expect(Array.isArray(selectedTx)).toStrictEqual(true);
+      expect(selectedTx).toStrictEqual(orderedTxList);
+    });
+    it('should not duplicate incoming transactions', () => {
+      const state = {
+        metamask: {
+          providerConfig: {
+            nickname: 'mainnet',
+            chainId: CHAIN_IDS.MAINNET,
+          },
+          featureFlags: {},
+          selectedAddress: '0xAddress',
+          internalAccounts: {
+            accounts: {
+              'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3': {
+                id: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+                address: '0xAddress',
+              },
+              metadata: {
+                name: 'Test Account',
+                keyring: {
+                  type: 'HD Key Tree',
+                },
+              },
+            },
+            selectedAccount: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+          },
+          transactions: [
+            {
+              id: 0,
+              chainId: CHAIN_IDS.MAINNET,
+              time: 0,
+              txParams: {
+                from: '0xAddress',
+                to: '0xRecipient',
+              },
+            },
+            {
+              id: 1,
+              chainId: CHAIN_IDS.MAINNET,
+              time: 1,
+              txParams: {
+                from: '0xAddress',
+                to: '0xRecipient',
+              },
+            },
+            {
+              id: 2,
+              chainId: CHAIN_IDS.MAINNET,
+              time: 2,
+              type: TransactionStatus.incoming,
+              txParams: {
+                from: '0xAddress',
+                to: '0xAddress',
+              },
+            },
+          ],
+        },
+      };
+
+      const orderedTxList = state.metamask.transactions.sort(
         (a, b) => b.time - a.time,
       );
 
@@ -155,6 +258,7 @@ describe('Transaction Selectors', () => {
       const tx1 = {
         id: 0,
         time: 0,
+        chainId: CHAIN_IDS.MAINNET,
         txParams: {
           from: '0xAddress',
           to: '0xRecipient',
@@ -165,6 +269,7 @@ describe('Transaction Selectors', () => {
       const tx2 = {
         id: 1,
         time: 1,
+        chainId: CHAIN_IDS.MAINNET,
         txParams: {
           from: '0xAddress',
           to: '0xRecipient',
@@ -174,15 +279,31 @@ describe('Transaction Selectors', () => {
 
       const state = {
         metamask: {
-          provider: {
+          providerConfig: {
             nickname: 'mainnet',
-            chainId: MAINNET_CHAIN_ID,
+            chainId: CHAIN_IDS.MAINNET,
           },
           selectedAddress: '0xAddress',
-          featureFlags: {
-            showIncomingTransactions: false,
+          internalAccounts: {
+            accounts: {
+              'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3': {
+                address: '0xAddress',
+                id: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+                metadata: {
+                  name: 'Test Account',
+                  keyring: {
+                    type: 'HD Key Tree',
+                  },
+                },
+                options: {},
+                methods: [...Object.values(EthMethod)],
+                type: EthAccountType.Eoa,
+              },
+            },
+            selectedAccount: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
           },
-          currentNetworkTxList: [tx1, tx2],
+          featureFlags: {},
+          transactions: [tx1, tx2],
         },
       };
 
@@ -215,63 +336,78 @@ describe('Transaction Selectors', () => {
     const submittedTx = {
       id: 0,
       time: 0,
+      chainId: CHAIN_IDS.MAINNET,
       txParams: {
         from: '0xAddress',
         to: '0xRecipient',
         nonce: '0x0',
       },
-      status: TRANSACTION_STATUSES.SUBMITTED,
+      status: TransactionStatus.submitted,
     };
 
     const unapprovedTx = {
       id: 1,
       time: 1,
+      chainId: CHAIN_IDS.MAINNET,
       txParams: {
         from: '0xAddress',
         to: '0xRecipient',
         nonce: '0x1',
       },
-      status: TRANSACTION_STATUSES.UNAPPROVED,
+      status: TransactionStatus.unapproved,
     };
 
     const approvedTx = {
       id: 2,
       time: 2,
+      chainId: CHAIN_IDS.MAINNET,
       txParams: {
         from: '0xAddress',
         to: '0xRecipient',
         nonce: '0x2',
       },
-      status: TRANSACTION_STATUSES.APPROVED,
+      status: TransactionStatus.approved,
     };
 
     const confirmedTx = {
       id: 3,
       time: 3,
+      chainId: CHAIN_IDS.MAINNET,
       txParams: {
         from: '0xAddress',
         to: '0xRecipient',
         nonce: '0x3',
       },
-      status: TRANSACTION_STATUSES.CONFIRMED,
+      status: TransactionStatus.confirmed,
     };
 
     const state = {
       metamask: {
-        provider: {
+        providerConfig: {
           nickname: 'mainnet',
-          chainId: MAINNET_CHAIN_ID,
+          chainId: CHAIN_IDS.MAINNET,
         },
         selectedAddress: '0xAddress',
-        featureFlags: {
-          showIncomingTransactions: false,
+        internalAccounts: {
+          accounts: {
+            'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3': {
+              address: '0xAddress',
+              id: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
+              metadata: {
+                name: 'Test Account',
+                keyring: {
+                  type: 'HD Key Tree',
+                },
+              },
+              options: {},
+              methods: [...Object.values(EthMethod)],
+              type: EthAccountType.Eoa,
+            },
+          },
+          selectedAccount: 'cf8dace4-9439-4bd4-b3a8-88c821c8fcb3',
         },
-        currentNetworkTxList: [
-          submittedTx,
-          unapprovedTx,
-          approvedTx,
-          confirmedTx,
-        ],
+        featureFlags: {},
+        transactions: [submittedTx, unapprovedTx, approvedTx, confirmedTx],
       },
     };
 
@@ -330,6 +466,129 @@ describe('Transaction Selectors', () => {
       expect(submittedPendingTransactionsSelector(state)).toStrictEqual(
         expectedResult,
       );
+    });
+  });
+
+  describe('hasTransactionPendingApprovals', () => {
+    const mockChainId = 'mockChainId';
+    const mockedState = {
+      metamask: {
+        providerConfig: {
+          chainId: mockChainId,
+        },
+        pendingApprovalCount: 2,
+        pendingApprovals: {
+          1: {
+            id: '1',
+            origin: 'origin',
+            time: Date.now(),
+            type: ApprovalType.WatchAsset,
+            requestData: {},
+            requestState: null,
+          },
+          2: {
+            id: '2',
+            origin: 'origin',
+            time: Date.now(),
+            type: ApprovalType.Transaction,
+            requestData: {},
+            requestState: null,
+          },
+        },
+        transactions: [
+          {
+            id: '2',
+            chainId: mockChainId,
+            status: TransactionStatus.unapproved,
+          },
+        ],
+      },
+    };
+
+    it('should return true if there is a pending transaction on same network', () => {
+      const result = hasTransactionPendingApprovals(mockedState);
+      expect(result).toBe(true);
+    });
+
+    it('should return false if there is a pending transaction on different network', () => {
+      mockedState.metamask.transactions[0].chainId = 'differentChainId';
+      const result = hasTransactionPendingApprovals(mockedState);
+      expect(result).toBe(false);
+    });
+
+    it.each([
+      [ApprovalType.EthDecrypt],
+      [ApprovalType.EthGetEncryptionPublicKey],
+      [ApprovalType.EthSign],
+      [ApprovalType.EthSignTypedData],
+      [ApprovalType.PersonalSign],
+    ])(
+      'should return true if there is a pending transaction of %s type',
+      (type) => {
+        const result = hasTransactionPendingApprovals({
+          ...mockedState,
+          metamask: {
+            ...mockedState.metamask,
+            pendingApprovals: {
+              2: {
+                id: '2',
+                origin: 'origin',
+                time: Date.now(),
+                type,
+                requestData: {},
+                requestState: null,
+              },
+            },
+          },
+        });
+        expect(result).toBe(true);
+      },
+    );
+  });
+
+  describe('getApprovedAndSignedTransactions', () => {
+    it('returns transactions with status of approved or signed on current network', () => {
+      const state = {
+        metamask: {
+          providerConfig: {
+            chainId: CHAIN_IDS.MAINNET,
+          },
+          transactions: [
+            {
+              id: 0,
+              chainId: CHAIN_IDS.MAINNET,
+              status: TransactionStatus.approved,
+            },
+            {
+              id: 1,
+              chainId: CHAIN_IDS.MAINNET,
+              status: TransactionStatus.submitted,
+            },
+            {
+              id: 2,
+              chainId: CHAIN_IDS.MAINNET,
+              status: TransactionStatus.unapproved,
+            },
+            {
+              id: 3,
+              chainId: CHAIN_IDS.MAINNET,
+              status: TransactionStatus.signed,
+            },
+            {
+              id: 4,
+              chainId: CHAIN_IDS.GOERLI,
+              status: TransactionStatus.signed,
+            },
+          ],
+        },
+      };
+
+      const results = getApprovedAndSignedTransactions(state);
+
+      expect(results).toStrictEqual([
+        state.metamask.transactions[0],
+        state.metamask.transactions[3],
+      ]);
     });
   });
 });

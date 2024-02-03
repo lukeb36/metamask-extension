@@ -1,12 +1,15 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { memo, useLayoutEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
+import { isEqual } from 'lodash';
 import { useI18nContext } from '../../../hooks/useI18nContext';
 import CheckBox, { CHECKED, INDETERMINATE, UNCHECKED } from '../check-box';
 import Identicon from '../identicon';
 import UserPreferencedCurrencyDisplay from '../../app/user-preferenced-currency-display';
 import { PRIMARY } from '../../../helpers/constants/common';
 import Tooltip from '../tooltip';
+import { Icon, IconName } from '../../component-library';
+import { IconColor } from '../../../helpers/constants/design-system';
 
 const AccountList = ({
   selectNewAccountViaModal,
@@ -23,7 +26,7 @@ const AccountList = ({
   const selectedAccountScrollRef = useRef(null);
   useLayoutEffect(() => {
     selectedAccountScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+  }, [selectedAccounts]);
 
   const Header = () => {
     let checked;
@@ -46,6 +49,7 @@ const AccountList = ({
           <div className="choose-account-list__select-all">
             <CheckBox
               className="choose-account-list__header-check-box"
+              dataTestId="choose-account-list-operate-all-check-box"
               checked={checked}
               onClick={() => (allAreSelected() ? deselectAll() : selectAll())}
             />
@@ -60,7 +64,12 @@ const AccountList = ({
                 </div>
               }
             >
-              <i className="fa fa-info-circle" />
+              <Icon
+                name={IconName.Info}
+                color={IconColor.iconMuted}
+                className="info-circle"
+                marginInlineStart={2}
+              />
             </Tooltip>
           </div>
         ) : null}
@@ -113,7 +122,12 @@ const AccountList = ({
                       addressLastConnectedMap[address]
                     }`}
                   >
-                    <i className="fa fa-info-circle" />
+                    <Icon
+                      name={IconName.Info}
+                      color={IconColor.iconMuted}
+                      className="info-circle"
+                      marginInlineStart={2}
+                    />
                   </Tooltip>
                 ) : null}
               </div>
@@ -178,4 +192,6 @@ AccountList.propTypes = {
   handleAccountClick: PropTypes.func.isRequired,
 };
 
-export default AccountList;
+export default memo(AccountList, (prevProps, nextProps) => {
+  return isEqual(prevProps.selectedAccounts, nextProps.selectedAccounts);
+});

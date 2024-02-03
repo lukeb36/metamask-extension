@@ -5,10 +5,14 @@ import { useSelector } from 'react-redux';
 import { useI18nContext } from '../../../../hooks/useI18nContext';
 import { MetaMetricsContext } from '../../../../contexts/metametrics';
 import {
-  EVENT,
-  EVENT_NAMES,
+  MetaMetricsEventCategory,
+  MetaMetricsEventName,
+  MetaMetricsTokenEventSource,
 } from '../../../../../shared/constants/metametrics';
-import { getDetectedTokensInCurrentNetwork } from '../../../../selectors';
+import {
+  getCurrentChainId,
+  getDetectedTokensInCurrentNetwork,
+} from '../../../../selectors';
 
 import Popover from '../../../ui/popover';
 import Box from '../../../ui/box';
@@ -26,14 +30,11 @@ const DetectedTokenSelectionPopover = ({
   const t = useI18nContext();
   const trackEvent = useContext(MetaMetricsContext);
 
+  const chainId = useSelector(getCurrentChainId);
+
   const detectedTokens = useSelector(getDetectedTokensInCurrentNetwork);
-  const { selected: selectedTokens = [] } = sortingBasedOnTokenSelection(
-    tokensListDetected,
-  );
-  const numOfTokensImporting =
-    selectedTokens.length === detectedTokens.length
-      ? `All`
-      : `(${selectedTokens.length})`;
+  const { selected: selectedTokens = [] } =
+    sortingBasedOnTokenSelection(tokensListDetected);
 
   const onClose = () => {
     setShowDetectedTokens(false);
@@ -41,10 +42,11 @@ const DetectedTokenSelectionPopover = ({
       ({ address, symbol }) => `${symbol} - ${address}`,
     );
     trackEvent({
-      event: EVENT_NAMES.TOKEN_IMPORT_CANCELED,
-      category: EVENT.CATEGORIES.WALLET,
+      event: MetaMetricsEventName.TokenImportCanceled,
+      category: MetaMetricsEventCategory.Wallet,
       properties: {
-        source: EVENT.SOURCE.TOKEN.DETECTED,
+        source_connection_method: MetaMetricsTokenEventSource.Detected,
+        chain_id: chainId,
         tokens: eventTokensDetails,
       },
     });
@@ -63,8 +65,9 @@ const DetectedTokenSelectionPopover = ({
         className="detected-token-selection-popover__import-button"
         type="primary"
         onClick={onImport}
+        disabled={selectedTokens.length === 0}
       >
-        {t('importWithCount', [numOfTokensImporting])}
+        {t('importWithCount', [`(${selectedTokens.length})`])}
       </Button>
     </>
   );
@@ -72,7 +75,11 @@ const DetectedTokenSelectionPopover = ({
   return (
     <Popover
       className="detected-token-selection-popover"
-      title={t('tokensFoundTitle', [detectedTokens.length])}
+      title={
+        detectedTokens.length === 1
+          ? t('tokenFoundTitle')
+          : t('tokensFoundTitle', [detectedTokens.length])
+      }
       onClose={onClose}
       footer={footer}
     >

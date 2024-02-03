@@ -1,12 +1,20 @@
 import React from 'react';
 import {
-  COLORS,
   FONT_WEIGHT,
   FONT_STYLE,
-  TEXT_ALIGN,
-  TYPOGRAPHY,
+  TextAlign,
+  TypographyVariant,
   OVERFLOW_WRAP,
+  DISPLAY,
+  BackgroundColor,
+  Color as ColorEnum,
+  TextColor,
+  BorderColor,
+  SEVERITIES,
 } from '../../../helpers/constants/design-system';
+import Box from '../box';
+
+import { BannerAlert } from '../../component-library/banner-alert';
 
 import { ValidColors, ValidTags } from './typography';
 
@@ -18,7 +26,7 @@ const marginSizeKnobOptions = [...sizeKnobOptions, 'auto'];
 
 export default {
   title: 'Components/UI/Typography',
-  id: __filename,
+
   parameters: {
     docs: {
       page: README,
@@ -27,7 +35,7 @@ export default {
   argTypes: {
     variant: {
       control: { type: 'select' },
-      options: Object.values(TYPOGRAPHY),
+      options: Object.values(TypographyVariant),
     },
     color: {
       control: { type: 'select' },
@@ -43,13 +51,13 @@ export default {
     },
     align: {
       control: { type: 'select' },
-      options: Object.values(TEXT_ALIGN),
+      options: Object.values(TextAlign),
     },
     overflowWrap: {
       control: { type: 'select' },
       options: Object.values(OVERFLOW_WRAP),
     },
-    tag: {
+    as: {
       control: { type: 'select' },
       options: ValidTags,
     },
@@ -72,26 +80,23 @@ export default {
 function renderBackgroundColor(color) {
   let bgColor;
   switch (color) {
-    case COLORS.OVERLAY_INVERSE:
-      bgColor = COLORS.OVERLAY_DEFAULT;
+    case ColorEnum.overlayInverse:
+      bgColor = BackgroundColor.overlayDefault;
       break;
-    case COLORS.PRIMARY_INVERSE:
-      bgColor = COLORS.PRIMARY_DEFAULT;
+    case ColorEnum.primaryInverse:
+      bgColor = BackgroundColor.primaryDefault;
       break;
-    case COLORS.SECONDARY_INVERSE:
-      bgColor = COLORS.SECONDARY_DEFAULT;
+    case ColorEnum.errorInverse:
+      bgColor = BackgroundColor.errorDefault;
       break;
-    case COLORS.ERROR_INVERSE:
-      bgColor = COLORS.ERROR_DEFAULT;
+    case ColorEnum.warningInverse:
+      bgColor = BackgroundColor.warningDefault;
       break;
-    case COLORS.WARNING_INVERSE:
-      bgColor = COLORS.WARNING_DEFAULT;
+    case ColorEnum.successInverse:
+      bgColor = BackgroundColor.successDefault;
       break;
-    case COLORS.SUCCESS_INVERSE:
-      bgColor = COLORS.SUCCESS_DEFAULT;
-      break;
-    case COLORS.INFO_INVERSE:
-      bgColor = COLORS.INFO_DEFAULT;
+    case ColorEnum.infoInverse:
+      bgColor = BackgroundColor.infoDefault;
       break;
     default:
       bgColor = null;
@@ -102,12 +107,23 @@ function renderBackgroundColor(color) {
 }
 
 export const DefaultStory = (args) => (
-  <Typography
-    boxProps={{ backgroundColor: renderBackgroundColor(args.color) }}
-    {...args}
-  >
-    {args.children}
-  </Typography>
+  <>
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
+    <Typography
+      boxProps={{ backgroundColor: renderBackgroundColor(args.color) }}
+      {...args}
+    >
+      {args.children}
+    </Typography>
+  </>
 );
 
 DefaultStory.storyName = 'Default';
@@ -118,7 +134,16 @@ DefaultStory.args = {
 
 export const Variant = (args) => (
   <>
-    {Object.values(TYPOGRAPHY).map((variant) => (
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
+    {Object.values(TypographyVariant).map((variant) => (
       <Typography
         boxProps={{ backgroundColor: renderBackgroundColor(args.color) }}
         {...args}
@@ -136,17 +161,26 @@ export const Color = (args) => {
   const LAST_VALID_COLORS_ARRAY_INDEX = 16;
   return (
     <>
+      <BannerAlert
+        severity={SEVERITIES.WARNING}
+        title="Deprecated"
+        description="<Typography/> has been deprecated in favor of the <Text /> component"
+        actionButtonLabel="See details"
+        actionButtonProps={{
+          href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+        }}
+      />
       {Object.values(ValidColors).map((color, index) => {
         if (index === LAST_VALID_COLORS_ARRAY_INDEX) {
           return (
             <React.Fragment key={color}>
               <Typography
-                color={COLORS.TEXT_DEFAULT}
-                align={TEXT_ALIGN.CENTER}
+                color={TextColor.textDefault}
+                align={TextAlign.Center}
                 boxProps={{
-                  backgroundColor: COLORS.WARNING_MUTED,
+                  backgroundColor: BackgroundColor.warningMuted,
                   padding: 4,
-                  borderColor: COLORS.WARNING_DEFAULT,
+                  borderColor: BorderColor.warningDefault,
                 }}
               >
                 DEPRECATED COLORS - DO NOT USE
@@ -189,6 +223,15 @@ export const Color = (args) => {
 
 export const FontWeight = (args) => (
   <>
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
     {Object.values(FONT_WEIGHT).map((weight) => (
       <Typography
         boxProps={{ backgroundColor: renderBackgroundColor(args.color) }}
@@ -204,6 +247,15 @@ export const FontWeight = (args) => (
 
 export const FontStyle = (args) => (
   <>
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
     {Object.values(FONT_STYLE).map((style) => (
       <Typography
         boxProps={{ backgroundColor: renderBackgroundColor(args.color) }}
@@ -219,7 +271,16 @@ export const FontStyle = (args) => (
 
 export const Align = (args) => (
   <>
-    {Object.values(TEXT_ALIGN).map((align) => (
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
+    {Object.values(TextAlign).map((align) => (
       <Typography
         boxProps={{ backgroundColor: renderBackgroundColor(args.color) }}
         {...args}
@@ -233,57 +294,110 @@ export const Align = (args) => (
 );
 
 export const OverflowWrap = (args) => (
-  <div
-    style={{
-      width: 250,
-      border: '1px solid var(--color-error-default)',
-      display: 'block',
-    }}
-  >
-    <Typography {...args} overflowWrap={OVERFLOW_WRAP.NORMAL}>
-      {OVERFLOW_WRAP.NORMAL}: 0x39013f961c378f02c2b82a6e1d31e9812786fd9d
-    </Typography>
-    <Typography {...args} overflowWrap={OVERFLOW_WRAP.BREAK_WORD}>
-      {OVERFLOW_WRAP.BREAK_WORD}: 0x39013f961c378f02c2b82a6e1d31e9812786fd9d
-    </Typography>
-  </div>
+  <>
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
+    <div
+      style={{
+        width: 250,
+        border: '1px solid var(--color-error-default)',
+        display: 'block',
+      }}
+    >
+      <Typography {...args} overflowWrap={OVERFLOW_WRAP.NORMAL}>
+        {OVERFLOW_WRAP.NORMAL}: 0x39013f961c378f02c2b82a6e1d31e9812786fd9d
+      </Typography>
+      <Typography {...args} overflowWrap={OVERFLOW_WRAP.BREAK_WORD}>
+        {OVERFLOW_WRAP.BREAK_WORD}: 0x39013f961c378f02c2b82a6e1d31e9812786fd9d
+      </Typography>
+    </div>
+  </>
 );
 
-export const Tag = (args) => (
+export const As = (args) => (
   <>
-    {Object.values(ValidTags).map((tag) => (
-      <Typography
-        boxProps={{ backgroundColor: renderBackgroundColor(args.color) }}
-        {...args}
-        tag={tag}
-        key={tag}
-      >
-        {tag}
-      </Typography>
-    ))}
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
+    <Typography boxProps={{ display: DISPLAY.BLOCK }} marginBottom={4}>
+      You can change the root element of the Typography component using the as
+      prop. Inspect the below elements to see the underlying HTML elements
+    </Typography>
+    <Box gap={4}>
+      {Object.values(ValidTags).map((as) => (
+        <Typography
+          {...args}
+          as={as}
+          key={as}
+          boxProps={{
+            backgroundColor: renderBackgroundColor(args.color),
+            display: DISPLAY.BLOCK,
+          }}
+        >
+          {as}
+        </Typography>
+      ))}
+    </Box>
   </>
 );
 
 export const Margin = (args) => (
-  <Typography {...args}>
-    This Typography component has a margin of {args.margin * 4}px
-  </Typography>
+  <>
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
+    <Typography {...args}>
+      This Typography component has a margin of {args.margin * 4}px
+    </Typography>
+  </>
 );
 
 Margin.args = {
   margin: 4,
 };
 
-export const BoxProps = (args) => (
-  <Typography {...args}>This uses the boxProps prop</Typography>
+export const BoxPropsStory = (args) => (
+  <>
+    <BannerAlert
+      severity={SEVERITIES.WARNING}
+      title="Deprecated"
+      description="<Typography/> has been deprecated in favor of the <Text /> component"
+      actionButtonLabel="See details"
+      actionButtonProps={{
+        href: 'https://github.com/MetaMask/metamask-extension/issues/17670',
+      }}
+    />
+    <Typography {...args}>This uses the boxProps prop</Typography>
+  </>
 );
 
-BoxProps.args = {
-  color: COLORS.TEXT_DEFAULT,
+BoxPropsStory.args = {
+  color: TextColor.textDefault,
   boxProps: {
-    backgroundColor: COLORS.INFO_MUTED,
-    borderColor: COLORS.INFO_DEFAULT,
+    backgroundColor: BackgroundColor.infoMuted,
+    borderColor: BorderColor.infoDefault,
     padding: 4,
     borderRadius: 4,
   },
 };
+
+BoxPropsStory.storyName = 'BoxProps';

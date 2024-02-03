@@ -4,13 +4,14 @@
   display: flex;
   justify-content: center;
 
-  @media screen and (min-width: $break-large) {
+  @include screen-sm-min {
     margin: 0;
   }
 
   &__timer-container {
     display: flex;
     padding-right: 3px;
+    color: var(--color-text-alternative);
 
     > span {
       display: flex;

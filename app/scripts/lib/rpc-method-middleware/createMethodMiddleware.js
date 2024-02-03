@@ -1,8 +1,5 @@
-///: BEGIN:ONLY_INCLUDE_IN(flask)
-import { handlers as permittedSnapMethods } from '@metamask/rpc-methods/dist/permitted';
-///: END:ONLY_INCLUDE_IN
-import { permissionRpcMethods } from '@metamask/controllers';
-import { selectHooks } from '@metamask/rpc-methods';
+import { permissionRpcMethods } from '@metamask/permission-controller';
+import { selectHooks } from '@metamask/snaps-rpc-methods';
 import { ethErrors } from 'eth-rpc-errors';
 import { flatten } from 'lodash';
 import { UNSUPPORTED_RPC_METHODS } from '../../../../shared/constants/network';
@@ -31,7 +28,7 @@ const expectedHookNames = Array.from(
  *
  * @param {Record<string, unknown>} hooks - Required "hooks" into our
  * controllers.
- * @returns {(req: Object, res: Object, next: Function, end: Function) => void}
+ * @returns {(req: object, res: object, next: Function, end: Function) => void}
  */
 export function createMethodMiddleware(hooks) {
   // Fail immediately if we forgot to provide any expected hooks.
@@ -63,7 +60,9 @@ export function createMethodMiddleware(hooks) {
           selectHooks(hooks, hookNames),
         );
       } catch (error) {
-        console.error(error);
+        if (process.env.METAMASK_DEBUG) {
+          console.error(error);
+        }
         return end(error);
       }
     }
@@ -71,40 +70,3 @@ export function createMethodMiddleware(hooks) {
     return next();
   };
 }
-
-///: BEGIN:ONLY_INCLUDE_IN(flask)
-const snapHandlerMap = permittedSnapMethods.reduce((map, handler) => {
-  for (const methodName of handler.methodNames) {
-    map.set(methodName, handler);
-  }
-  return map;
-}, new Map());
-
-export function createSnapMethodMiddleware(isSnap, hooks) {
-  return async function methodMiddleware(req, res, next, end) {
-    const handler = snapHandlerMap.get(req.method);
-    if (handler) {
-      if (/^snap_/iu.test(req.method) && !isSnap) {
-        return end(ethErrors.rpc.methodNotFound());
-      }
-
-      const { implementation, hookNames } = handler;
-      try {
-        // Implementations may or may not be async, so we must await them.
-        return await implementation(
-          req,
-          res,
-          next,
-          end,
-          selectHooks(hooks, hookNames),
-        );
-      } catch (error) {
-        console.error(error);
-        return end(error);
-      }
-    }
-
-    return next();
-  };
-}
-///: END:ONLY_INCLUDE_IN

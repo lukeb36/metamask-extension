@@ -15,6 +15,7 @@ module.exports = {
 };
 
 const { setupTaskDisplay } = require('./display');
+const { logError } = require('./utils');
 
 async function runTask(taskName, { skipStats } = {}) {
   if (!(taskName in tasks)) {
@@ -30,7 +31,7 @@ async function runTask(taskName, { skipStats } = {}) {
     console.error(
       `MetaMask build: Encountered an error while running task "${taskName}".`,
     );
-    console.error(err);
+    logError(err);
     process.exit(1);
   }
   taskEvents.emit('complete');
@@ -79,12 +80,9 @@ function runInChildProcess(
     );
 
     // forward logs to main process
-    // skip the first stdout event (announcing the process command)
-    childProcess.stdout.once('data', () => {
-      childProcess.stdout.on('data', (data) =>
-        process.stdout.write(`${taskName}: ${data}`),
-      );
-    });
+    childProcess.stdout.on('data', (data) =>
+      process.stdout.write(`${taskName}: ${data}`),
+    );
 
     childProcess.stderr.on('data', (data) =>
       process.stderr.write(`${taskName}: ${data}`),

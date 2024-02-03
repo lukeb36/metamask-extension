@@ -2,19 +2,31 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Redirect } from 'react-router-dom';
 
-import Identicon from '../../../../components/ui/identicon';
-import Copy from '../../../../components/ui/icon/copy-icon.component';
 import Button from '../../../../components/ui/button/button.component';
+
+import {
+  AvatarAccount,
+  AvatarAccountSize,
+  Box,
+  ButtonIcon,
+  ButtonIconSize,
+  IconName,
+  Text,
+} from '../../../../components/component-library';
 
 import Tooltip from '../../../../components/ui/tooltip';
 import { useI18nContext } from '../../../../hooks/useI18nContext';
 import { useCopyToClipboard } from '../../../../hooks/useCopyToClipboard';
+import {
+  IconColor,
+  TextVariant,
+} from '../../../../helpers/constants/design-system';
 
 function quadSplit(address) {
-  return `0x ${address
+  return `0x${address
     .slice(2)
     .match(/.{1,4}/gu)
-    .join(' ')}`;
+    .join('')}`;
 }
 
 function ViewContact({
@@ -36,10 +48,19 @@ function ViewContact({
   return (
     <div className="settings-page__content-row">
       <div className="settings-page__content-item">
-        <div className="settings-page__header address-book__header">
-          <Identicon address={address} diameter={60} />
-          <div className="address-book__header__name">{name}</div>
-        </div>
+        <Box
+          className="settings-page__header address-book__header"
+          paddingLeft={6}
+        >
+          <AvatarAccount size={AvatarAccountSize.Lg} address={address} />
+          <Text
+            className="address-book__header__name"
+            variant={TextVariant.bodyLgMedium}
+            marginInlineStart={4}
+          >
+            {name || address}
+          </Text>
+        </Box>
         <div className="address-book__view-contact__group">
           <Button
             type="secondary"
@@ -62,25 +83,29 @@ function ViewContact({
               position="bottom"
               title={copied ? t('copiedExclamation') : t('copyToClipboard')}
             >
-              <button
+              <ButtonIcon
+                ariaLabel="copy"
                 className="address-book__view-contact__group__static-address--copy-icon"
                 onClick={() => {
                   handleCopy(checkSummedAddress);
                 }}
-              >
-                <Copy size={20} color="var(--color-primary-default)" />
-              </button>
+                iconName={copied ? IconName.CopySuccess : IconName.Copy}
+                size={ButtonIconSize.Lg}
+                color={IconColor.primaryDefault}
+              />
             </Tooltip>
           </div>
         </div>
-        <div className="address-book__view-contact__group">
-          <div className="address-book__view-contact__group__label--capitalized">
-            {t('memo')}
+        {memo.length > 0 ? (
+          <div className="address-book__view-contact__group">
+            <div className="address-book__view-contact__group__label--capitalized">
+              {t('memo')}
+            </div>
+            <div className="address-book__view-contact__group__static-address">
+              {memo}
+            </div>
           </div>
-          <div className="address-book__view-contact__group__static-address">
-            {memo}
-          </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );

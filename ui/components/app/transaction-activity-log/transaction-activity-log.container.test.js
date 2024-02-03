@@ -8,16 +8,22 @@ jest.mock('react-redux', () => ({
   },
 }));
 
-require('./transaction-activity-log.container.js');
+require('./transaction-activity-log.container');
 
 describe('TransactionActivityLog container', () => {
   describe('mapStateToProps()', () => {
     it('should return the correct props', () => {
       const mockState = {
         metamask: {
-          conversionRate: 280.45,
-          nativeCurrency: 'ETH',
-          frequentRpcListDetail: [],
+          currencyRates: {
+            ETH: {
+              conversionRate: 280.45,
+            },
+          },
+          networkConfigurations: {},
+          providerConfig: {
+            ticker: 'ETH',
+          },
         },
       };
 
@@ -31,18 +37,22 @@ describe('TransactionActivityLog container', () => {
     it('should return the correct props when on a custom network', () => {
       const mockState = {
         metamask: {
-          conversionRate: 280.45,
-          nativeCurrency: 'ETH',
-          frequentRpcListDetail: [
-            {
-              rpcUrl: 'https://customnetwork.com/',
-              rpcPrefs: {
-                blockExplorerUrl: 'https://customblockexplorer.com/',
-              },
+          currencyRates: {
+            ETH: {
+              conversionRate: 280.45,
             },
-          ],
-          provider: {
+          },
+          networkConfigurations: {
+            networkConfigurationId: {
+              rpcUrl: 'https://customnetwork.com/',
+            },
+          },
+          providerConfig: {
             rpcUrl: 'https://customnetwork.com/',
+            ticker: 'ETH',
+            rpcPrefs: {
+              blockExplorerUrl: 'https://customblockexplorer.com/',
+            },
           },
         },
       };

@@ -1,5 +1,8 @@
 import PropTypes from 'prop-types';
 import React, { PureComponent } from 'react';
+///: BEGIN:ONLY_INCLUDE_IF(snaps)
+import { SubjectType } from '@metamask/permission-controller';
+///: END:ONLY_INCLUDE_IF
 import PermissionsConnectHeader from '../../permissions-connect-header';
 import Tooltip from '../../../ui/tooltip';
 import PermissionsConnectPermissionList from '../../permissions-connect-permission-list';
@@ -28,11 +31,14 @@ export default class PermissionPageContainerContent extends PureComponent {
   };
 
   renderRequestedPermissions() {
-    const { selectedPermissions } = this.props;
+    const { selectedPermissions, subjectMetadata } = this.props;
 
     return (
       <div className="permission-approval-container__content__requested">
-        <PermissionsConnectPermissionList permissions={selectedPermissions} />
+        <PermissionsConnectPermissionList
+          permissions={selectedPermissions}
+          targetSubjectMetadata={subjectMetadata}
+        />
       </div>
     );
   }
@@ -93,11 +99,27 @@ export default class PermissionPageContainerContent extends PureComponent {
     return t('connectTo', [selectedIdentities[0]?.addressLabel]);
   }
 
-  render() {
+  getHeaderText() {
     const { subjectMetadata } = this.props;
     const { t } = this.context;
 
+    ///: BEGIN:ONLY_INCLUDE_IF(snaps)
+    if (subjectMetadata.subjectType === SubjectType.Snap) {
+      return t('allowThisSnapTo');
+    }
+    ///: END:ONLY_INCLUDE_IF
+
+    return subjectMetadata.extensionId
+      ? t('allowExternalExtensionTo', [subjectMetadata.extensionId])
+      : t('allowThisSiteTo');
+  }
+
+  render() {
+    const { subjectMetadata } = this.props;
+
     const title = this.getTitle();
+
+    const headerText = this.getHeaderText();
 
     return (
       <div className="permission-approval-container__content">
@@ -106,12 +128,9 @@ export default class PermissionPageContainerContent extends PureComponent {
             iconUrl={subjectMetadata.iconUrl}
             iconName={subjectMetadata.name}
             headerTitle={title}
-            headerText={
-              subjectMetadata.extensionId
-                ? t('allowExternalExtensionTo', [subjectMetadata.extensionId])
-                : t('allowThisSiteTo')
-            }
+            headerText={headerText}
             siteOrigin={subjectMetadata.origin}
+            subjectType={subjectMetadata.subjectType}
           />
           <section className="permission-approval-container__permissions-container">
             {this.renderRequestedPermissions()}

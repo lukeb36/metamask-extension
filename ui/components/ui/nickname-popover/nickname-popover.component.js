@@ -1,15 +1,17 @@
 import React, { useCallback, useContext } from 'react';
 import { useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
+import { useHistory } from 'react-router-dom';
 import { I18nContext } from '../../../contexts/i18n';
 import Tooltip from '../tooltip';
 import Popover from '../popover';
 import Button from '../button';
-import Identicon from '../identicon/identicon.component';
+import Identicon from '../identicon';
 import { shortenAddress } from '../../../helpers/utils/util';
-import CopyIcon from '../icon/copy-icon.component';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
-import { getUseTokenDetection, getTokenList } from '../../../selectors';
+import { getTokenList, getBlockExplorerLinkText } from '../../../selectors';
+import { NETWORKS_ROUTE } from '../../../helpers/constants/routes';
+import { ButtonIcon, IconName, IconSize } from '../../component-library';
 
 const NicknamePopover = ({
   address,
@@ -19,14 +21,25 @@ const NicknamePopover = ({
   explorerLink,
 }) => {
   const t = useContext(I18nContext);
+  const history = useHistory();
 
   const onAddClick = useCallback(() => {
     onAdd();
   }, [onAdd]);
 
   const [copied, handleCopy] = useCopyToClipboard();
-  const useTokenDetection = useSelector(getUseTokenDetection);
   const tokenList = useSelector(getTokenList);
+  const blockExplorerLinkText = useSelector(getBlockExplorerLinkText);
+
+  const routeToAddBlockExplorerUrl = () => {
+    history.push(`${NETWORKS_ROUTE}#blockExplorerUrl`);
+  };
+
+  const openBlockExplorer = () => {
+    global.platform.openTab({
+      url: explorerLink,
+    });
+  };
 
   return (
     <div className="nickname-popover">
@@ -35,8 +48,7 @@ const NicknamePopover = ({
           address={address}
           diameter={36}
           className="nickname-popover__identicon"
-          useTokenDetection={useTokenDetection}
-          tokenList={tokenList}
+          image={tokenList[address.toLowerCase()]?.iconUrl}
         />
         <div className="nickname-popover__address">
           {nickname || shortenAddress(address)}
@@ -50,15 +62,11 @@ const NicknamePopover = ({
             position="bottom"
             title={copied ? t('copiedExclamation') : t('copyToClipboard')}
           >
-            <button
-              type="link"
-              onClick={() => {
-                handleCopy(address);
-              }}
-              title=""
-            >
-              <CopyIcon size={11} color="var(--color-icon-default)" />
-            </button>
+            <ButtonIcon
+              iconName={copied ? IconName.CopySuccess : IconName.Copy}
+              size={IconSize.Sm}
+              onClick={() => handleCopy(address)}
+            />
           </Tooltip>
         </div>
 
@@ -66,16 +74,22 @@ const NicknamePopover = ({
           <Button
             type="link"
             className="nickname-popover__etherscan-link"
-            onClick={() => {
-              global.platform.openTab({
-                url: explorerLink,
-              });
-            }}
+            onClick={
+              blockExplorerLinkText.firstPart === 'addBlockExplorer'
+                ? routeToAddBlockExplorerUrl
+                : openBlockExplorer
+            }
             target="_blank"
             rel="noopener noreferrer"
-            title={t('etherscanView')}
+            title={
+              blockExplorerLinkText.firstPart === 'addBlockExplorer'
+                ? t('addBlockExplorer')
+                : t('etherscanView')
+            }
           >
-            {t('viewOnBlockExplorer')}
+            {blockExplorerLinkText.firstPart === 'addBlockExplorer'
+              ? t('addBlockExplorer')
+              : t('viewOnBlockExplorer')}
           </Button>
         </div>
         <Button

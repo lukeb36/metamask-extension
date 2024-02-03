@@ -3,26 +3,42 @@ import abi from 'human-standard-token-abi';
 import BigNumber from 'bignumber.js';
 import * as ethUtil from 'ethereumjs-util';
 import { DateTime } from 'luxon';
-import { util } from '@metamask/controllers';
-import slip44 from '@metamask/slip44';
-import { addHexPrefix } from '../../../app/scripts/lib/util';
 import {
-  GOERLI_CHAIN_ID,
-  KOVAN_CHAIN_ID,
-  LOCALHOST_CHAIN_ID,
-  MAINNET_CHAIN_ID,
-  RINKEBY_CHAIN_ID,
-  ROPSTEN_CHAIN_ID,
-} from '../../../shared/constants/network';
-import { toChecksumHexAddress } from '../../../shared/modules/hexstring-utils';
+  getFormattedIpfsUrl,
+  fetchTokenContractExchangeRates,
+  CodefiTokenPricesServiceV2,
+} from '@metamask/assets-controllers';
+import * as lodash from 'lodash';
+import bowser from 'bowser';
+///: BEGIN:ONLY_INCLUDE_IF(snaps)
+import { stripSnapPrefix } from '@metamask/snaps-utils';
+import { WALLET_SNAP_PERMISSION_KEY } from '@metamask/snaps-rpc-methods';
+// eslint-disable-next-line import/no-duplicates
+import { isObject } from '@metamask/utils';
+///: END:ONLY_INCLUDE_IF
+// eslint-disable-next-line import/no-duplicates
+import { isStrictHexString } from '@metamask/utils';
+import { CHAIN_IDS, NETWORK_TYPES } from '../../../shared/constants/network';
+import { logErrorWithMessage } from '../../../shared/modules/error';
+import {
+  toChecksumHexAddress,
+  stripHexPrefix,
+} from '../../../shared/modules/hexstring-utils';
 import {
   TRUNCATED_ADDRESS_START_CHARS,
   TRUNCATED_NAME_CHAR_LIMIT,
   TRUNCATED_ADDRESS_END_CHARS,
 } from '../../../shared/constants/labels';
-import { toBigNumber } from '../../../shared/modules/conversion.utils';
-
+import { Numeric } from '../../../shared/modules/Numeric';
+import { OUTDATED_BROWSER_VERSIONS } from '../constants/common';
+///: BEGIN:ONLY_INCLUDE_IF(snaps)
+import { SNAPS_METADATA } from '../../../shared/constants/snaps';
+///: END:ONLY_INCLUDE_IF
 // formatData :: ( date: <Unix Timestamp> ) -> String
+import { isEqualCaseInsensitive } from '../../../shared/modules/string-utils';
+import { hexToDecimal } from '../../../shared/modules/conversion.utils';
+import { SNAPS_VIEW_ROUTE } from '../constants/routes';
+
 export function formatDate(date, format = "M/d/y 'at' T") {
   if (!date) {
     return '';
@@ -52,12 +68,12 @@ export function formatDateWithYearContext(
 export function isDefaultMetaMaskChain(chainId) {
   if (
     !chainId ||
-    chainId === MAINNET_CHAIN_ID ||
-    chainId === ROPSTEN_CHAIN_ID ||
-    chainId === RINKEBY_CHAIN_ID ||
-    chainId === KOVAN_CHAIN_ID ||
-    chainId === GOERLI_CHAIN_ID ||
-    chainId === LOCALHOST_CHAIN_ID
+    chainId === CHAIN_IDS.MAINNET ||
+    chainId === CHAIN_IDS.LINEA_MAINNET ||
+    chainId === CHAIN_IDS.GOERLI ||
+    chainId === CHAIN_IDS.SEPOLIA ||
+    chainId === CHAIN_IDS.LINEA_GOERLI ||
+    chainId === CHAIN_IDS.LOCALHOST
   ) {
     return true;
   }
@@ -85,7 +101,7 @@ export function addressSummary(
   }
   let checked = toChecksumHexAddress(address);
   if (!includeHex) {
-    checked = ethUtil.stripHexPrefix(checked);
+    checked = stripHexPrefix(checked);
   }
   return checked
     ? `${checked.slice(0, firstSegLength)}...${checked.slice(
@@ -104,6 +120,7 @@ export function isValidDomainName(address) {
     .match(
       /^(?:[a-z0-9](?:[-a-z0-9]*[a-z0-9])?\.)+[a-z0-9][-a-z0-9]*[a-z0-9]$/u,
     );
+
   return match !== null;
 }
 
@@ -119,7 +136,7 @@ export function numericBalance(balance) {
   if (!balance) {
     return new ethUtil.BN(0, 16);
   }
-  const stripped = ethUtil.stripHexPrefix(balance);
+  const stripped = stripHexPrefix(balance);
   return new ethUtil.BN(stripped, 16);
 }
 
@@ -193,30 +210,12 @@ export function getRandomFileName() {
   return fileName;
 }
 
-export function exportAsFile(filename, data, type = 'text/csv') {
-  // eslint-disable-next-line no-param-reassign
-  filename = filename || getRandomFileName();
-  // source: https://stackoverflow.com/a/33542499 by Ludovic Feltz
-  const blob = new window.Blob([data], { type });
-  if (window.navigator.msSaveOrOpenBlob) {
-    window.navigator.msSaveBlob(blob, filename);
-  } else {
-    const elem = window.document.createElement('a');
-    elem.target = '_blank';
-    elem.href = window.URL.createObjectURL(blob);
-    elem.download = filename;
-    document.body.appendChild(elem);
-    elem.click();
-    document.body.removeChild(elem);
-  }
-}
-
 /**
  * Shortens an Ethereum address for display, preserving the beginning and end.
  * Returns the given address if it is no longer than 10 characters.
  * Shortened addresses are 13 characters long.
  *
- * Example output: 0xabcd...1234
+ * Example output: 0xabcde...12345
  *
  * @param {string} address - The address to shorten.
  * @returns {string} The shortened address, or the original if it was no longer
@@ -317,71 +316,6 @@ export function checkExistingAddresses(address, list = []) {
   return list.some(matchesAddress);
 }
 
-/**
- * Given a number and specified precision, returns that number in base 10 with a maximum of precision
- * significant digits, but without any trailing zeros after the decimal point To be used when wishing
- * to display only as much digits to the user as necessary
- *
- * @param {string | number | BigNumber} n - The number to format
- * @param {number} precision - The maximum number of significant digits in the return value
- * @returns {string} The number in decimal form, with <= precision significant digits and no decimal trailing zeros
- */
-export function toPrecisionWithoutTrailingZeros(n, precision) {
-  return new BigNumber(n)
-    .toPrecision(precision)
-    .replace(/(\.[0-9]*[1-9])0*|(\.0*)/u, '$1');
-}
-
-/**
- * Given and object where all values are strings, returns the same object with all values
- * now prefixed with '0x'
- *
- * @param obj
- */
-export function addHexPrefixToObjectValues(obj) {
-  return Object.keys(obj).reduce((newObj, key) => {
-    return { ...newObj, [key]: addHexPrefix(obj[key]) };
-  }, {});
-}
-
-/**
- * Given the standard set of information about a transaction, returns a transaction properly formatted for
- * publishing via JSON RPC and web3
- *
- * @param {object} options
- * @param {boolean} [options.sendToken] - Indicates whether or not the transaciton is a token transaction
- * @param {string} options.data - A hex string containing the data to include in the transaction
- * @param {string} options.to - A hex address of the tx recipient address
- * @param options.amount
- * @param {string} options.from - A hex address of the tx sender address
- * @param {string} options.gas - A hex representation of the gas value for the transaction
- * @param {string} options.gasPrice - A hex representation of the gas price for the transaction
- * @returns {Object} An object ready for submission to the blockchain, with all values appropriately hex prefixed
- */
-export function constructTxParams({
-  sendToken,
-  data,
-  to,
-  amount,
-  from,
-  gas,
-  gasPrice,
-}) {
-  const txParams = {
-    data,
-    from,
-    value: '0',
-    gas,
-    gasPrice,
-  };
-
-  if (!sendToken) {
-    txParams.value = amount;
-    txParams.to = to;
-  }
-  return addHexPrefixToObjectValues(txParams);
-}
-
 export function bnGreaterThan(a, b) {
   if (a === null || a === undefined || b === null || b === undefined) {
     return null;
@@ -416,6 +350,12 @@ export function getURL(url) {
   } catch (err) {
     return '';
   }
+}
+
+export function getIsBrowserDeprecated(
+  browser = bowser.getParser(window.navigator.userAgent),
+) {
+  return browser.satisfies(OUTDATED_BROWSER_VERSIONS) ?? false;
 }
 
 export function getURLHost(url) {
@@ -501,17 +441,46 @@ const solidityTypes = () => {
   ];
 };
 
-export const sanitizeMessage = (msg, baseType, types) => {
+const SOLIDITY_TYPES = solidityTypes();
+
+const stripArrayType = (potentialArrayType) =>
+  potentialArrayType.replace(/\[[[0-9]*\]*/gu, '');
+
+const stripOneLayerofNesting = (potentialArrayType) =>
+  potentialArrayType.replace(/\[[[0-9]*\]/u, '');
+
+const isArrayType = (potentialArrayType) =>
+  potentialArrayType.match(/\[[[0-9]*\]*/u) !== null;
+
+const isSolidityType = (type) => SOLIDITY_TYPES.includes(type);
+
+export const sanitizeMessage = (msg, primaryType, types) => {
   if (!types) {
     throw new Error(`Invalid types definition`);
   }
+
+  // Primary type can be an array.
+  const isArray = primaryType && isArrayType(primaryType);
+  if (isArray) {
+    return {
+      value: msg.map((value) =>
+        sanitizeMessage(value, stripOneLayerofNesting(primaryType), types),
+      ),
+      type: primaryType,
+    };
+  } else if (isSolidityType(primaryType)) {
+    return { value: msg, type: primaryType };
+  }
+
+  // If not, assume to be struct
+  const baseType = isArray ? stripArrayType(primaryType) : primaryType;
 
   const baseTypeDefinitions = types[baseType];
   if (!baseTypeDefinitions) {
     throw new Error(`Invalid primary type definition`);
   }
 
-  const sanitizedMessage = {};
+  const sanitizedStruct = {};
   const msgKeys = Object.keys(msg);
   msgKeys.forEach((msgKey) => {
     const definedType = Object.values(baseTypeDefinitions).find(
@@ -522,42 +491,51 @@ export const sanitizeMessage = (msg, baseType, types) => {
       return;
     }
 
-    // key has a type. check if the definedType is also a type
-    const nestedType = definedType.type.replace(/\[\]$/u, '');
-    const nestedTypeDefinition = types[nestedType];
-
-    if (nestedTypeDefinition) {
-      if (definedType.type.endsWith('[]') > 0) {
-        // nested array
-        sanitizedMessage[msgKey] = msg[msgKey].map((value) =>
-          sanitizeMessage(value, nestedType, types),
-        );
-      } else {
-        // nested object
-        sanitizedMessage[msgKey] = sanitizeMessage(
-          msg[msgKey],
-          definedType.type,
-          types,
-        );
-      }
-    } else {
-      // check if it's a valid solidity type
-      const isSolidityType = solidityTypes().includes(nestedType);
-      if (isSolidityType) {
-        sanitizedMessage[msgKey] = msg[msgKey];
-      }
-    }
+    sanitizedStruct[msgKey] = sanitizeMessage(
+      msg[msgKey],
+      definedType.type,
+      types,
+    );
   });
-  return sanitizedMessage;
+  return { value: sanitizedStruct, type: primaryType };
 };
 
 export function getAssetImageURL(image, ipfsGateway) {
-  if (!image || !ipfsGateway || typeof image !== 'string') {
+  if (!image || typeof image !== 'string') {
     return '';
   }
 
-  if (image.startsWith('ipfs://')) {
-    return util.getFormattedIpfsUrl(ipfsGateway, image, true);
+  if (ipfsGateway && image.startsWith('ipfs://')) {
+    // With v11.1.0, we started seeing errors thrown that included this
+    // line in the stack trace. The cause is that the `getIpfsCIDv1AndPath`
+    // method within assets-controllers/src/assetsUtil.ts can throw
+    // if part of the ipfsUrl, i.e. the `image` variable within this function,
+    // contains characters not in the Base58 alphabet. Details on that are
+    // here https://digitalbazaar.github.io/base58-spec/#alphabet. This happens
+    // with some NFTs, when we attempt to parse part of their IPFS image address
+    // with the `CID.parse` function (CID is part of the multiform package)
+    //
+    // Before v11.1.0 `getFormattedIpfsUrl` was not used in the extension codebase.
+    // Its use within assets-controllers always ensures that errors are caught
+    // and ignored. So while we were handling NFTs that can cause this error before,
+    // we were always catching and ignoring the error. As of PR #20172, we started
+    // passing all NFTs image URLs to `getAssetImageURL` from nft-items.js, which is
+    // why we started seeing these errors cause crashes for users in v11.1.0
+    //
+    // For the sake of a quick fix, we are wrapping this call in a try-catch, which
+    // the assets-controllers already do in some form in all cases where this function
+    // is called. This probably does not affect user experience, as we would not have
+    // correctly rendered these NFTs before v11.1.0 either (due to the same error
+    // disuccessed in this code comment).
+    //
+    // In the future, we can look into solving the root cause, which might require
+    // no longer using multiform's CID.parse() method within the assets-controller
+    try {
+      return getFormattedIpfsUrl(ipfsGateway, image, true);
+    } catch (e) {
+      logErrorWithMessage(e);
+      return '';
+    }
   }
   return image;
 }
@@ -569,24 +547,10 @@ export function roundToDecimalPlacesRemovingExtraZeroes(
   if (numberish === undefined || numberish === null) {
     return '';
   }
-  return toBigNumber
-    .dec(toBigNumber.dec(numberish).toFixed(numberOfDecimalPlaces))
-    .toNumber();
-}
-
-/**
- * Gets the name of the SLIP-44 protocol corresponding to the specified
- * `coin_type`.
- *
- * @param {string | number} coinType - The SLIP-44 `coin_type` value whose name
- * to retrieve.
- * @returns {string | undefined} The name of the protocol if found.
- */
-export function coinTypeToProtocolName(coinType) {
-  if (String(coinType) === '1') {
-    return 'Test Networks';
-  }
-  return slip44[coinType]?.name || undefined;
+  return new Numeric(
+    new Numeric(numberish, 10).toFixed(numberOfDecimalPlaces),
+    10,
+  ).toNumber();
 }
 
 /**
@@ -599,3 +563,145 @@ export function coinTypeToProtocolName(coinType) {
 export function isNullish(value) {
   return value === null || value === undefined;
 }
+
+///: BEGIN:ONLY_INCLUDE_IF(snaps)
+export const getSnapName = (snapId, subjectMetadata) => {
+  if (SNAPS_METADATA[snapId]?.name) {
+    return SNAPS_METADATA[snapId].name;
+  }
+
+  if (subjectMetadata) {
+    return subjectMetadata.name;
+  }
+
+  // Mirrors a legacy behaviour of stripSnapPrefix
+  if (!snapId) {
+    return null;
+  }
+
+  return stripSnapPrefix(snapId);
+};
+
+export const getSnapRoute = (snapId) => {
+  return `${SNAPS_VIEW_ROUTE}/${encodeURIComponent(snapId)}`;
+};
+
+export const getDedupedSnaps = (request, permissions) => {
+  const permission = request?.permissions?.[WALLET_SNAP_PERMISSION_KEY];
+  const requestedSnaps = permission?.caveats[0].value;
+  const currentSnaps =
+    permissions?.[WALLET_SNAP_PERMISSION_KEY]?.caveats[0].value;
+
+  if (!isObject(currentSnaps) && requestedSnaps) {
+    return Object.keys(requestedSnaps);
+  }
+
+  const requestedSnapKeys = requestedSnaps ? Object.keys(requestedSnaps) : [];
+  const currentSnapKeys = currentSnaps ? Object.keys(currentSnaps) : [];
+  const dedupedSnaps = requestedSnapKeys.filter(
+    (snapId) => !currentSnapKeys.includes(snapId),
+  );
+
+  return dedupedSnaps.length > 0 ? dedupedSnaps : requestedSnapKeys;
+};
+
+///: END:ONLY_INCLUDE_IF
+
+/**
+ * The method escape RTL character in string
+ *
+ * @param {*} value
+ * @returns {(string|*)} escaped string or original param value
+ */
+export const sanitizeString = (value) => {
+  if (!value) {
+    return value;
+  }
+  if (!lodash.isString(value)) {
+    return value;
+  }
+  const regex = /\u202E/giu;
+  return value.replace(regex, '\\u202E');
+};
+
+/**
+ * This method checks current provider type and returns its string representation
+ *
+ * @param {*} provider
+ * @param {*} t
+ * @returns
+ */
+
+export const getNetworkNameFromProviderType = (providerName) => {
+  if (providerName === NETWORK_TYPES.RPC) {
+    return '';
+  }
+  return providerName;
+};
+
+/**
+ * Checks if the given keyring type is able to export an account.
+ *
+ * @param keyringType - The type of the keyring.
+ * @returns {boolean} `false` if the keyring type includes 'Hardware' or 'Snap', `true` otherwise.
+ */
+export const isAbleToExportAccount = (keyringType = '') => {
+  return !keyringType.includes('Hardware') && !keyringType.includes('Snap');
+};
+
+/**
+ * Checks if a tokenId in Hex or decimal format already exists in an object.
+ *
+ * @param {string} address - collection address.
+ * @param {string} tokenId - tokenId to search for
+ * @param {*} obj - object to look into
+ * @returns {boolean} `false` if tokenId does not already exist.
+ */
+export const checkTokenIdExists = (address, tokenId, obj) => {
+  // check if input tokenId is hexadecimal
+  // If it is convert to decimal and compare with existing tokens
+  const isHex = isStrictHexString(tokenId);
+  let convertedTokenId = tokenId;
+  if (isHex) {
+    // Convert to decimal
+    convertedTokenId = hexToDecimal(tokenId);
+  }
+  // Convert the input address to checksum address
+  const checkSumAdr = toChecksumHexAddress(address);
+  if (obj[checkSumAdr]) {
+    const value = obj[checkSumAdr];
+    return lodash.some(value.nfts, (nft) => {
+      return (
+        nft.address === checkSumAdr &&
+        (isEqualCaseInsensitive(nft.tokenId, tokenId) ||
+          isEqualCaseInsensitive(nft.tokenId, convertedTokenId.toString()))
+      );
+    });
+  }
+  return false;
+};
+
+/**
+ * Retrieves token prices
+ *
+ * @param {string} nativeCurrency - native currency to fetch prices for.
+ * @param {Hex[]} tokenAddresses - set of contract addresses
+ * @param {Hex} chainId - current chainId
+ * @returns The prices for the requested tokens.
+ */
+export const fetchTokenExchangeRates = async (
+  nativeCurrency,
+  tokenAddresses,
+  chainId,
+) => {
+  try {
+    return await fetchTokenContractExchangeRates({
+      tokenPricesService: new CodefiTokenPricesServiceV2(),
+      nativeCurrency,
+      tokenAddresses,
+      chainId,
+    });
+  } catch (err) {
+    return {};
+  }
+};

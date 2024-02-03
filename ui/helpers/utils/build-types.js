@@ -1,25 +1,30 @@
-///: BEGIN:ONLY_INCLUDE_IN(beta)
-import betaJson from '../../../app/build-types/beta/images/beta-mascot.json';
-///: END:ONLY_INCLUDE_IN
-///: BEGIN:ONLY_INCLUDE_IN(flask)
+///: BEGIN:ONLY_INCLUDE_IF(build-flask)
 import flaskJson from '../../../app/build-types/flask/images/flask-mascot.json';
-///: END:ONLY_INCLUDE_IN
+///: END:ONLY_INCLUDE_IF
+///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+import mmiJson from '../../../app/build-types/mmi/mmi-mascot.json';
+///: END:ONLY_INCLUDE_IF
 
 const assetList = {
   main: {
     // Will use default provided by the @metamask/logo library
     foxMeshJson: undefined,
   },
-  ///: BEGIN:ONLY_INCLUDE_IN(beta)
+  ///: BEGIN:ONLY_INCLUDE_IF(build-beta)
   beta: {
-    foxMeshJson: betaJson,
+    foxMeshJson: undefined,
   },
-  ///: END:ONLY_INCLUDE_IN
-  ///: BEGIN:ONLY_INCLUDE_IN(flask)
+  ///: END:ONLY_INCLUDE_IF
+  ///: BEGIN:ONLY_INCLUDE_IF(build-flask)
   flask: {
     foxMeshJson: flaskJson,
   },
-  ///: END:ONLY_INCLUDE_IN
+  ///: END:ONLY_INCLUDE_IF
+  ///: BEGIN:ONLY_INCLUDE_IF(build-mmi)
+  mmi: {
+    foxMeshJson: mmiJson,
+  },
+  ///: END:ONLY_INCLUDE_IF
 };
 
 export function isBeta() {

@@ -1,47 +1,55 @@
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
-import Approve from '../../ui/icon/approve-icon.component';
-import Interaction from '../../ui/icon/interaction-icon.component';
-import Receive from '../../ui/icon/receive-icon.component';
-import Send from '../../ui/icon/send-icon.component';
-import Sign from '../../ui/icon/sign-icon.component';
-import Swap from '../../ui/icon/swap-icon-for-list.component';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import {
-  TRANSACTION_GROUP_CATEGORIES,
-  TRANSACTION_GROUP_STATUSES,
-  TRANSACTION_STATUSES,
+  TransactionGroupCategory,
+  TransactionGroupStatus,
 } from '../../../../shared/constants/transaction';
 import { captureSingleException } from '../../../store/actions';
+import { AvatarIcon, AvatarIconSize, IconName } from '../../component-library';
+import {
+  BackgroundColor,
+  IconColor,
+} from '../../../helpers/constants/design-system';
 
 const ICON_MAP = {
-  [TRANSACTION_GROUP_CATEGORIES.APPROVAL]: Approve,
-  [TRANSACTION_GROUP_CATEGORIES.INTERACTION]: Interaction,
-  [TRANSACTION_GROUP_CATEGORIES.RECEIVE]: Receive,
-  [TRANSACTION_GROUP_CATEGORIES.SEND]: Send,
-  [TRANSACTION_GROUP_CATEGORIES.SIGNATURE_REQUEST]: Sign,
-  [TRANSACTION_GROUP_CATEGORIES.SWAP]: Swap,
+  [TransactionGroupCategory.approval]: IconName.Check,
+  [TransactionGroupCategory.interaction]: IconName.ProgrammingArrows,
+  [TransactionGroupCategory.receive]: IconName.Received,
+  [TransactionGroupCategory.send]: IconName.Arrow2UpRight,
+  [TransactionGroupCategory.signatureRequest]: IconName.SecurityTick,
+  [TransactionGroupCategory.swap]: IconName.SwapHorizontal,
 };
 
-const FAIL_COLOR = 'var(--color-error-default)';
-const PENDING_COLOR = 'var(--color-icon-default)';
-const OK_COLOR = 'var(--color-primary-default)';
-
 const COLOR_MAP = {
-  [TRANSACTION_GROUP_STATUSES.PENDING]: PENDING_COLOR,
-  [TRANSACTION_GROUP_STATUSES.CANCELLED]: FAIL_COLOR,
-  [TRANSACTION_STATUSES.APPROVED]: PENDING_COLOR,
-  [TRANSACTION_STATUSES.DROPPED]: FAIL_COLOR,
-  [TRANSACTION_STATUSES.FAILED]: FAIL_COLOR,
-  [TRANSACTION_STATUSES.REJECTED]: FAIL_COLOR,
-  [TRANSACTION_STATUSES.SUBMITTED]: PENDING_COLOR,
-  [TRANSACTION_STATUSES.UNAPPROVED]: PENDING_COLOR,
+  [TransactionGroupStatus.pending]: IconColor.primaryDefault,
+  [TransactionGroupStatus.cancelled]: IconColor.errorDefault,
+  [TransactionStatus.approved]: IconColor.primaryDefault,
+  [TransactionStatus.dropped]: IconColor.errorDefault,
+  [TransactionStatus.failed]: IconColor.errorDefault,
+  [TransactionStatus.rejected]: IconColor.errorDefault,
+  [TransactionStatus.submitted]: IconColor.primaryDefault,
+  [TransactionStatus.unapproved]: IconColor.primaryDefault,
+};
+
+const BACKGROUND_COLOR_MAP = {
+  [TransactionGroupStatus.pending]: BackgroundColor.primaryMuted,
+  [TransactionGroupStatus.cancelled]: BackgroundColor.errorMuted,
+  [TransactionStatus.approved]: BackgroundColor.primaryMuted,
+  [TransactionStatus.dropped]: BackgroundColor.errorMuted,
+  [TransactionStatus.failed]: BackgroundColor.errorMuted,
+  [TransactionStatus.rejected]: BackgroundColor.errorMuted,
+  [TransactionStatus.submitted]: BackgroundColor.primaryMuted,
+  [TransactionStatus.unapproved]: BackgroundColor.primaryMuted,
 };
 
 export default function TransactionIcon({ status, category }) {
   const dispatch = useDispatch();
 
-  const color = COLOR_MAP[status] || OK_COLOR;
+  const color = COLOR_MAP[status] || IconColor.primaryDefault;
+  const backgroundColor =
+    BACKGROUND_COLOR_MAP[status] || BackgroundColor.primaryMuted;
   const Icon = ICON_MAP[category];
 
   if (!Icon) {
@@ -50,30 +58,42 @@ export default function TransactionIcon({ status, category }) {
         `The category prop passed to TransactionIcon is not supported. The prop is: ${category}`,
       ),
     );
-    return <div className="transaction-icon__grey-circle" />;
+    return (
+      <AvatarIcon
+        backgroundColor={BackgroundColor.backgroundAlternative}
+        size={AvatarIconSize.Md}
+      />
+    );
   }
 
-  return <Icon color={color} size={28} />;
+  return (
+    <AvatarIcon
+      backgroundColor={backgroundColor}
+      iconName={Icon}
+      size={AvatarIconSize.Md}
+      color={color}
+    />
+  );
 }
 
 TransactionIcon.propTypes = {
   status: PropTypes.oneOf([
-    TRANSACTION_GROUP_STATUSES.CANCELLED,
-    TRANSACTION_GROUP_STATUSES.PENDING,
-    TRANSACTION_STATUSES.APPROVED,
-    TRANSACTION_STATUSES.CONFIRMED,
-    TRANSACTION_STATUSES.DROPPED,
-    TRANSACTION_STATUSES.FAILED,
-    TRANSACTION_STATUSES.REJECTED,
-    TRANSACTION_STATUSES.SUBMITTED,
-    TRANSACTION_STATUSES.UNAPPROVED,
+    TransactionGroupStatus.cancelled,
+    TransactionGroupStatus.pending,
+    TransactionStatus.approved,
+    TransactionStatus.confirmed,
+    TransactionStatus.dropped,
+    TransactionStatus.failed,
+    TransactionStatus.rejected,
+    TransactionStatus.submitted,
+    TransactionStatus.unapproved,
   ]).isRequired,
   category: PropTypes.oneOf([
-    TRANSACTION_GROUP_CATEGORIES.APPROVAL,
-    TRANSACTION_GROUP_CATEGORIES.INTERACTION,
-    TRANSACTION_GROUP_CATEGORIES.RECEIVE,
-    TRANSACTION_GROUP_CATEGORIES.SEND,
-    TRANSACTION_GROUP_CATEGORIES.SIGNATURE_REQUEST,
-    TRANSACTION_GROUP_CATEGORIES.SWAP,
+    TransactionGroupCategory.approval,
+    TransactionGroupCategory.interaction,
+    TransactionGroupCategory.receive,
+    TransactionGroupCategory.send,
+    TransactionGroupCategory.signatureRequest,
+    TransactionGroupCategory.swap,
   ]).isRequired,
 };

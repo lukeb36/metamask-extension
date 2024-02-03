@@ -1,7 +1,7 @@
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 
-import { GAS_ESTIMATE_TYPES } from '../../../../shared/constants/gas';
+import { GasEstimateTypes } from '../../../../shared/constants/gas';
 import mockEstimates from '../../../../test/data/mock-estimates.json';
 import mockState from '../../../../test/data/mock-state.json';
 import { GasFeeContextProvider } from '../../../contexts/gasFee';
@@ -32,7 +32,8 @@ const render = ({ contextProps } = {}) => {
       preferences: {
         useNativeCurrencyAsPrimaryCurrency: true,
       },
-      gasFeeEstimates: mockEstimates[GAS_ESTIMATE_TYPES.FEE_MARKET],
+      gasFeeEstimates: mockEstimates[GasEstimateTypes.feeMarket],
+      ...contextProps,
     },
   });
 
@@ -58,8 +59,7 @@ describe('GasDetailsItem', () => {
   it('should render label', async () => {
     render();
     await waitFor(() => {
-      expect(screen.queryByText('Gas')).toBeInTheDocument();
-      expect(screen.queryByText('(estimated)')).toBeInTheDocument();
+      expect(screen.queryAllByText('Market')[0]).toBeInTheDocument();
       expect(screen.queryByText('Max fee:')).toBeInTheDocument();
       expect(screen.queryAllByText('ETH').length).toBeGreaterThan(0);
     });
@@ -68,6 +68,32 @@ describe('GasDetailsItem', () => {
   it('should show warning icon if estimates are high', async () => {
     render({
       contextProps: { transaction: { txParams: {}, userFeeLevel: 'high' } },
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('⚠ Max fee:')).toBeInTheDocument();
+    });
+  });
+
+  it('should show warning icon if dapp estimates are high', async () => {
+    render({
+      contextProps: {
+        gasFeeEstimates: {
+          high: {
+            suggestedMaxPriorityFeePerGas: '1',
+          },
+        },
+        transaction: {
+          txParams: {
+            gas: '0x52081',
+            maxFeePerGas: '0x38D7EA4C68000',
+          },
+          userFeeLevel: 'medium',
+          dappSuggestedGasFees: {
+            maxPriorityFeePerGas: '0x38D7EA4C68000',
+            maxFeePerGas: '0x38D7EA4C68000',
+          },
+        },
+      },
     });
     await waitFor(() => {
       expect(screen.queryByText('⚠ Max fee:')).toBeInTheDocument();
@@ -99,12 +125,53 @@ describe('GasDetailsItem', () => {
   it('should not return null even if there is simulationError if user acknowledged gasMissing warning', async () => {
     render();
     await waitFor(() => {
-      expect(screen.queryByText('Gas')).toBeInTheDocument();
+      expect(screen.queryAllByText('Market')[0]).toBeInTheDocument();
+      expect(screen.queryByText('Max fee:')).toBeInTheDocument();
+      expect(screen.queryAllByText('ETH').length).toBeGreaterThan(0);
     });
   });
 
   it('should render gas fee details', async () => {
     render();
+    await waitFor(() => {
+      expect(screen.queryAllByTitle('0.0000315 ETH').length).toBeGreaterThan(0);
+      expect(screen.queryAllByText('ETH').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('should render gas fee details if maxPriorityFeePerGas is 0', async () => {
+    render({
+      contextProps: {
+        transaction: {
+          txParams: {
+            gas: '0x5208',
+            maxFeePerGas: '0x59682f10',
+            maxPriorityFeePerGas: '0',
+          },
+          simulationFails: false,
+          userFeeLevel: 'low',
+        },
+      },
+    });
+    await waitFor(() => {
+      expect(screen.queryAllByTitle('0.0000315 ETH').length).toBeGreaterThan(0);
+      expect(screen.queryAllByText('ETH').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('should render gas fee details if maxPriorityFeePerGas is undefined', async () => {
+    render({
+      contextProps: {
+        transaction: {
+          txParams: {
+            gas: '0x5208',
+            maxFeePerGas: '0x59682f10',
+          },
+          simulationFails: false,
+          userFeeLevel: 'low',
+        },
+      },
+    });
     await waitFor(() => {
       expect(screen.queryAllByTitle('0.0000315 ETH').length).toBeGreaterThan(0);
       expect(screen.queryAllByText('ETH').length).toBeGreaterThan(0);

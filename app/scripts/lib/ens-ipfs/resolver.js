@@ -1,6 +1,6 @@
 import namehash from 'eth-ens-namehash';
-import Eth from 'ethjs-query';
-import EthContract from 'ethjs-contract';
+import Eth from '@metamask/ethjs-query';
+import EthContract from '@metamask/ethjs-contract';
 import contentHash from '@ensdomains/content-hash';
 import registryAbi from './contracts/registry';
 import resolverAbi from './contracts/resolver';
@@ -35,9 +35,8 @@ export default async function resolveEnsToIpfsContentId({ provider, name }) {
     const type = contentHash.getCodec(rawContentHash);
 
     if (type === 'ipfs-ns' || type === 'ipns-ns') {
-      decodedContentHash = contentHash.helpers.cidV0ToV1Base32(
-        decodedContentHash,
-      );
+      decodedContentHash =
+        contentHash.helpers.cidV0ToV1Base32(decodedContentHash);
     }
 
     return { type, hash: decodedContentHash };
@@ -80,7 +79,8 @@ function getRegistryForChainId(chainId) {
     case 3:
     case 4:
     case 5:
-      // Mainnet, Ropsten, Rinkeby, and Goerli, respectively, use the same address
+    case 6:
+      // Mainnet and Goerli, respectively, use the same address
       return '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
     default:
       return null;

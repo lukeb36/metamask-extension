@@ -1,20 +1,26 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { PRIMARY, SECONDARY, ETH } from '../../../helpers/constants/common';
+import { useSelector } from 'react-redux';
+import { PRIMARY, SECONDARY } from '../../../helpers/constants/common';
 import CurrencyDisplay from '../../ui/currency-display';
 import { useUserPreferencedCurrency } from '../../../hooks/useUserPreferencedCurrency';
+import { AvatarNetwork, AvatarNetworkSize } from '../../component-library';
+import { getCurrentNetwork } from '../../../selectors';
+import { getNativeCurrency } from '../../../ducks/metamask/metamask';
 
 export default function UserPreferencedCurrencyDisplay({
   'data-testid': dataTestId,
-  ethLogoHeight = 14,
   ethNumberOfDecimals,
   fiatNumberOfDecimals,
   numberOfDecimals: propsNumberOfDecimals,
   showEthLogo,
   type,
   showFiat,
+  showCurrencySuffix,
   ...restProps
 }) {
+  const currentNetwork = useSelector(getCurrentNetwork);
+  const nativeCurrency = useSelector(getNativeCurrency);
   const { currency, numberOfDecimals } = useUserPreferencedCurrency(type, {
     ethNumberOfDecimals,
     fiatNumberOfDecimals,
@@ -23,19 +29,22 @@ export default function UserPreferencedCurrencyDisplay({
   });
   const prefixComponent = useMemo(() => {
     return (
-      currency === ETH &&
-      showEthLogo && (
-        <i
-          className="fab fa-ethereum"
-          style={{
-            color: 'var(--color-icon-default)',
-            fontSize: ethLogoHeight,
-          }}
+      showEthLogo &&
+      currency === nativeCurrency && (
+        <AvatarNetwork
+          size={AvatarNetworkSize.Xs}
+          name={currentNetwork?.nickname}
+          src={currentNetwork?.rpcPrefs?.imageUrl}
         />
       )
     );
-  }, [currency, showEthLogo, ethLogoHeight]);
-
+  }, [
+    currency,
+    showEthLogo,
+    nativeCurrency,
+    currentNetwork?.nickname,
+    currentNetwork?.rpcPrefs?.imageUrl,
+  ]);
   return (
     <CurrencyDisplay
       {...restProps}
@@ -43,10 +52,10 @@ export default function UserPreferencedCurrencyDisplay({
       data-testid={dataTestId}
       numberOfDecimals={numberOfDecimals}
       prefixComponent={prefixComponent}
+      suffix={showCurrencySuffix && !showEthLogo && currency}
     />
   );
 }
-
 UserPreferencedCurrencyDisplay.propTypes = {
   className: PropTypes.string,
   'data-testid': PropTypes.string,
@@ -68,4 +77,9 @@ UserPreferencedCurrencyDisplay.propTypes = {
     PropTypes.number,
   ]),
   showFiat: PropTypes.bool,
+  showCurrencySuffix: PropTypes.bool,
+  /**
+   * UserPreferencedCurrencyDisplay component should also accept all the props from Currency component
+   */
+  ...CurrencyDisplay.propTypes,
 };

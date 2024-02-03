@@ -17,6 +17,7 @@ import { captureException, captureMessage } from '@sentry/browser';
 import { omit } from 'lodash';
 import { getEnvironmentType } from '../../app/scripts/lib/util';
 import { PATH_NAME_MAP } from '../helpers/constants/routes';
+import { MetaMetricsContextProp } from '../../shared/constants/metametrics';
 import { useSegmentContext } from '../hooks/useSegmentContext';
 
 import { trackMetaMetricsEvent, trackMetaMetricsPage } from '../store/actions';
@@ -36,7 +37,7 @@ import { trackMetaMetricsEvent, trackMetaMetricsPage } from '../store/actions';
 /**
  * @typedef {(
  *  payload: UIMetricsEventPayload,
- *  options: MetaMetricsEventOptions
+ *  options?: MetaMetricsEventOptions
  * ) => Promise<void>} UITrackEventMethod
  */
 
@@ -57,11 +58,30 @@ export function MetaMetricsProvider({ children }) {
   const location = useLocation();
   const context = useSegmentContext();
 
+  // Sometimes we want to track context properties inside the event's "properties" object.
+  const addContextPropsIntoEventProperties = useCallback(
+    (payload, options) => {
+      const fields = options?.contextPropsIntoEventProperties;
+      if (!fields || fields.length === 0) {
+        return;
+      }
+      if (!payload.properties) {
+        payload.properties = {};
+      }
+      if (fields.includes(MetaMetricsContextProp.PageTitle)) {
+        payload.properties[MetaMetricsContextProp.PageTitle] =
+          context.page?.title;
+      }
+    },
+    [context.page?.title],
+  );
+
   /**
    * @type {UITrackEventMethod}
    */
   const trackEvent = useCallback(
     (payload, options) => {
+      addContextPropsIntoEventProperties(payload, options);
       trackMetaMetricsEvent(
         {
           ...payload,
@@ -71,7 +91,7 @@ export function MetaMetricsProvider({ children }) {
         options,
       );
     },
-    [context],
+    [addContextPropsIntoEventProperties, context],
   );
 
   // Used to prevent double tracking page calls

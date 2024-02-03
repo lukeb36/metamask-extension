@@ -1,11 +1,13 @@
 import { ethErrors } from 'eth-rpc-errors';
 import { omit } from 'lodash';
+import { ApprovalType } from '@metamask/controller-utils';
 import { MESSAGE_TYPE } from '../../../../../shared/constants/app';
 import {
-  ETH_SYMBOL,
   CHAIN_ID_TO_TYPE_MAP,
   NETWORK_TO_NAME_MAP,
   CHAIN_ID_TO_RPC_URL_MAP,
+  CURRENCY_SYMBOLS,
+  BUILT_IN_INFURA_NETWORKS,
 } from '../../../../../shared/constants/network';
 import {
   isPrefixedFormattedHexString,
@@ -17,26 +19,36 @@ const switchEthereumChain = {
   implementation: switchEthereumChainHandler,
   hookNames: {
     getCurrentChainId: true,
-    findCustomRpcBy: true,
+    findNetworkConfigurationBy: true,
+    findNetworkClientIdByChainId: true,
+    setNetworkClientIdForDomain: true,
     setProviderType: true,
-    updateRpcTarget: true,
+    setActiveNetwork: true,
     requestUserApproval: true,
+    getNetworkConfigurations: true,
+    getNetworkClientIdForDomain: true,
+    getProviderConfig: true,
   },
 };
+
 export default switchEthereumChain;
 
-function findExistingNetwork(chainId, findCustomRpcBy) {
-  if (chainId in CHAIN_ID_TO_TYPE_MAP) {
+function findExistingNetwork(chainId, findNetworkConfigurationBy) {
+  if (
+    Object.values(BUILT_IN_INFURA_NETWORKS)
+      .map(({ chainId: id }) => id)
+      .includes(chainId)
+  ) {
     return {
       chainId,
-      ticker: ETH_SYMBOL,
+      ticker: CURRENCY_SYMBOLS.ETH,
       nickname: NETWORK_TO_NAME_MAP[chainId],
       rpcUrl: CHAIN_ID_TO_RPC_URL_MAP[chainId],
       type: CHAIN_ID_TO_TYPE_MAP[chainId],
     };
   }
 
-  return findCustomRpcBy({ chainId });
+  return findNetworkConfigurationBy({ chainId });
 }
 
 async function switchEthereumChainHandler(
@@ -46,10 +58,13 @@ async function switchEthereumChainHandler(
   end,
   {
     getCurrentChainId,
-    findCustomRpcBy,
+    findNetworkConfigurationBy,
+    findNetworkClientIdByChainId,
+    setNetworkClientIdForDomain,
     setProviderType,
-    updateRpcTarget,
+    setActiveNetwork,
     requestUserApproval,
+    getProviderConfig,
   },
 ) {
   if (!req.params?.[0] || typeof req.params[0] !== 'object') {
@@ -94,30 +109,51 @@ async function switchEthereumChainHandler(
     );
   }
 
-  const requestData = findExistingNetwork(_chainId, findCustomRpcBy);
-  if (requestData) {
+  const requestData = {
+    toNetworkConfiguration: findExistingNetwork(
+      _chainId,
+      findNetworkConfigurationBy,
+    ),
+  };
+
+  requestData.fromNetworkConfiguration = getProviderConfig();
+
+  if (requestData.toNetworkConfiguration) {
     const currentChainId = getCurrentChainId();
+
+    // we might want to change all this so that it displays the network you are switching from -> to (in a way that is domain - specific)
+
+    const networkClientId = findNetworkClientIdByChainId(_chainId);
+
     if (currentChainId === _chainId) {
+      setNetworkClientIdForDomain(req.origin, networkClientId);
       res.result = null;
       return end();
     }
+
     try {
       const approvedRequestData = await requestUserApproval({
         origin,
-        type: MESSAGE_TYPE.SWITCH_ETHEREUM_CHAIN,
+        type: ApprovalType.SwitchEthereumChain,
         requestData,
       });
-      if (chainId in CHAIN_ID_TO_TYPE_MAP) {
-        setProviderType(approvedRequestData.type);
+      if (
+        Object.values(BUILT_IN_INFURA_NETWORKS)
+          .map(({ chainId: id }) => id)
+          .includes(_chainId)
+      ) {
+        await setProviderType(approvedRequestData.type);
       } else {
-        await updateRpcTarget(approvedRequestData);
+        await setActiveNetwork(approvedRequestData.id);
       }
+      setNetworkClientIdForDomain(req.origin, networkClientId);
       res.result = null;
     } catch (error) {
       return end(error);
     }
     return end();
   }
+
   return end(
     ethErrors.provider.custom({
       code: 4902, // To-be-standardized "unrecognized chain ID" error

@@ -1,10 +1,17 @@
 import browser from 'webextension-polyfill';
 import ExtensionPlatform from './extension';
 
+const TEST_URL =
+  'chrome-extension://jjlgkphpeekojaidfeknpknnimdbleaf/home.html';
+
 jest.mock('webextension-polyfill', () => {
   return {
     runtime: {
       getManifest: jest.fn(),
+      getURL: jest.fn(),
+    },
+    notifications: {
+      create: jest.fn(),
     },
   };
 });
@@ -88,6 +95,92 @@ describe('extension platform', () => {
 
       expect(() => extensionPlatform.getVersion()).toThrow(
         'Version contains invalid prerelease:',
+      );
+    });
+  });
+
+  describe('getExtensionURL', () => {
+    let extensionPlatform;
+    beforeEach(() => {
+      browser.runtime.getURL.mockReturnValue(TEST_URL);
+      extensionPlatform = new ExtensionPlatform();
+    });
+
+    it('should return URL itself if no route or queryString is provided', () => {
+      expect(extensionPlatform.getExtensionURL()).toStrictEqual(TEST_URL);
+    });
+
+    it('should return URL with route when provided', () => {
+      const TEST_ROUTE = 'test-route';
+      expect(extensionPlatform.getExtensionURL(TEST_ROUTE)).toStrictEqual(
+        `${TEST_URL}#${TEST_ROUTE}`,
+      );
+    });
+
+    it('should return URL with queryString when provided', () => {
+      const QUERY_STRING = 'name=ferret';
+      expect(
+        extensionPlatform.getExtensionURL(null, QUERY_STRING),
+      ).toStrictEqual(`${TEST_URL}?${QUERY_STRING}`);
+    });
+  });
+
+  describe('_showFailedTransaction', () => {
+    it('should show failed transaction with nonce', async () => {
+      const txMeta = {
+        txParams: { nonce: '0x1' },
+        error: { message: 'Error message' },
+      };
+      const extensionPlatform = new ExtensionPlatform();
+      const showNotificationSpy = jest.spyOn(
+        extensionPlatform,
+        '_showNotification',
+      );
+
+      await extensionPlatform._showFailedTransaction(txMeta);
+
+      expect(showNotificationSpy).toHaveBeenCalledWith(
+        'Failed transaction',
+        `Transaction 1 failed! ${txMeta.error.message}`,
+      );
+    });
+
+    it('should show failed transaction with errorMessage', async () => {
+      const errorMessage = 'Test error message';
+      const txMeta = {
+        txParams: { nonce: '0x1' },
+        error: { message: 'Error message' },
+      };
+      const extensionPlatform = new ExtensionPlatform();
+      const showNotificationSpy = jest.spyOn(
+        extensionPlatform,
+        '_showNotification',
+      );
+
+      await extensionPlatform._showFailedTransaction(txMeta, errorMessage);
+
+      expect(showNotificationSpy).toHaveBeenCalledWith(
+        'Failed transaction',
+        `Transaction 1 failed! ${errorMessage}`,
+      );
+    });
+
+    it('should show failed transaction without nonce', async () => {
+      const txMeta = {
+        txParams: {},
+        error: { message: 'Error message' },
+      };
+      const extensionPlatform = new ExtensionPlatform();
+      const showNotificationSpy = jest.spyOn(
+        extensionPlatform,
+        '_showNotification',
+      );
+
+      await extensionPlatform._showFailedTransaction(txMeta);
+
+      expect(showNotificationSpy).toHaveBeenCalledWith(
+        'Failed transaction',
+        `Transaction failed! ${txMeta.error.message}`,
       );
     });
   });

@@ -21,19 +21,18 @@ import {
   BUILD_QUOTE_ROUTE,
 } from '../../../helpers/constants/routes';
 import PulseLoader from '../../../components/ui/pulse-loader';
-import Typography from '../../../components/ui/typography';
 import Box from '../../../components/ui/box';
 import {
   BLOCK_SIZES,
-  COLORS,
-  TYPOGRAPHY,
-  FONT_WEIGHT,
-  JUSTIFY_CONTENT,
+  TextVariant,
+  JustifyContent,
   DISPLAY,
+  TextColor,
 } from '../../../helpers/constants/design-system';
 import SwapsFooter from '../swaps-footer';
 import { MetaMetricsContext } from '../../../contexts/metametrics';
-import { EVENT } from '../../../../shared/constants/metametrics';
+import { MetaMetricsEventCategory } from '../../../../shared/constants/metametrics';
+import { Text } from '../../../components/component-library';
 import SwapStepIcon from './swap-step-icon';
 
 export default function AwaitingSignatures() {
@@ -58,7 +57,7 @@ export default function AwaitingSignatures() {
   useEffect(() => {
     trackEvent({
       event: 'Awaiting Signature(s) on a HW wallet',
-      category: EVENT.CATEGORIES.SWAPS,
+      category: MetaMetricsEventCategory.Swaps,
       sensitiveProperties: {
         needs_two_confirmations: needsTwoConfirmations,
         token_from: sourceTokenInfo?.symbol,
@@ -87,61 +86,59 @@ export default function AwaitingSignatures() {
         paddingLeft={8}
         paddingRight={8}
         height={BLOCK_SIZES.FULL}
-        justifyContent={JUSTIFY_CONTENT.CENTER}
+        justifyContent={JustifyContent.center}
         display={DISPLAY.FLEX}
         className="awaiting-signatures__content"
       >
         <Box marginTop={3} marginBottom={4}>
           <PulseLoader />
         </Box>
-        <Typography color={COLORS.TEXT_DEFAULT} variant={TYPOGRAPHY.H3}>
+        <Text
+          color={TextColor.textDefault}
+          variant={TextVariant.headingMd}
+          as="h3"
+        >
           {headerText}
-        </Typography>
+        </Text>
         {needsTwoConfirmations && (
           <>
-            <Typography
-              variant={TYPOGRAPHY.Paragraph}
-              boxProps={{ marginTop: 2 }}
-              fontWeight={FONT_WEIGHT.BOLD}
-            >
+            <Text variant={TextVariant.bodyMdBold} marginTop={2}>
               {t('swapToConfirmWithHwWallet')}
-            </Typography>
+            </Text>
             <ul className="awaiting-signatures__steps">
               <li>
                 <SwapStepIcon stepNumber={1} />
                 {t('swapAllowSwappingOf', [
-                  <Typography
-                    tag="span"
-                    fontWeight={FONT_WEIGHT.BOLD}
+                  <Text
+                    as="span"
+                    variant={TextVariant.bodyMdBold}
                     key="allowToken"
                   >
                     {destinationTokenInfo?.symbol}
-                  </Typography>,
+                  </Text>,
                 ])}
               </li>
               <li>
                 <SwapStepIcon stepNumber={2} />
                 {t('swapFromTo', [
-                  <Typography
-                    tag="span"
-                    fontWeight={FONT_WEIGHT.BOLD}
+                  <Text
+                    as="span"
+                    variant={TextVariant.bodyMdBold}
                     key="tokenFrom"
                   >
                     {sourceTokenInfo?.symbol}
-                  </Typography>,
-                  <Typography
-                    tag="span"
-                    fontWeight={FONT_WEIGHT.BOLD}
+                  </Text>,
+                  <Text
+                    as="span"
+                    variation={TextVariant.bodyMdBold}
                     key="tokenTo"
                   >
                     {destinationTokenInfo?.symbol}
-                  </Typography>,
+                  </Text>,
                 ])}
               </li>
             </ul>
-            <Typography variant={TYPOGRAPHY.Paragraph}>
-              {t('swapGasFeesSplit')}
-            </Typography>
+            <Text variant={TextVariant.bodyMd}>{t('swapGasFeesSplit')}</Text>
           </>
         )}
       </Box>

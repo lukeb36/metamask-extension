@@ -8,8 +8,8 @@ import Dropdown from '../../../components/ui/dropdown';
 
 import { getURLHostName } from '../../../helpers/utils/util';
 
-import { DEVICE_NAMES } from '../../../../shared/constants/hardware-wallets';
-import { EVENT } from '../../../../shared/constants/metametrics';
+import { HardwareDeviceNames } from '../../../../shared/constants/hardware-wallets';
+import { MetaMetricsEventCategory } from '../../../../shared/constants/metametrics';
 
 class AccountList extends Component {
   state = {
@@ -31,6 +31,10 @@ class AccountList extends Component {
 
   setPath(pathValue) {
     this.setState({ pathValue });
+  }
+
+  isFirstPage() {
+    return this.props.accounts[0]?.index === 0;
   }
 
   renderHdPathSelector() {
@@ -65,9 +69,9 @@ class AccountList extends Component {
   renderHeader() {
     const { device } = this.props;
     const shouldShowHDPaths = [
-      DEVICE_NAMES.LEDGER,
-      DEVICE_NAMES.LATTICE,
-      DEVICE_NAMES.TREZOR,
+      HardwareDeviceNames.ledger,
+      HardwareDeviceNames.lattice,
+      HardwareDeviceNames.trezor,
     ].includes(device.toLowerCase());
     return (
       <div className="hw-connect">
@@ -95,11 +99,18 @@ class AccountList extends Component {
           const checked =
             this.props.selectedAccounts.includes(account.index) ||
             accountAlreadyConnected;
+          const accountLink = getAccountLink(
+            account.address,
+            chainId,
+            rpcPrefs,
+          );
+          const blockExplorerDomain = getURLHostName(accountLink);
 
           return (
             <div
               className="hw-account-list__item"
               key={account.address}
+              data-testid="hw-account-list__item"
               title={
                 accountAlreadyConnected
                   ? this.context.t('selectAnAccountAlreadyConnected')
@@ -131,18 +142,13 @@ class AccountList extends Component {
               <a
                 className="hw-account-list__item__link"
                 onClick={() => {
-                  const accountLink = getAccountLink(
-                    account.address,
-                    chainId,
-                    rpcPrefs,
-                  );
                   this.context.trackEvent({
-                    category: EVENT.CATEGORIES.ACCOUNTS,
+                    category: MetaMetricsEventCategory.Accounts,
                     event: 'Clicked Block Explorer Link',
                     properties: {
                       actions: 'Hardware Connect',
                       link_type: 'Account Tracker',
-                      block_explorer_domain: getURLHostName(accountLink),
+                      block_explorer_domain: blockExplorerDomain,
                     },
                   });
                   global.platform.openTab({
@@ -151,7 +157,9 @@ class AccountList extends Component {
                 }}
                 target="_blank"
                 rel="noopener noreferrer"
-                title={this.context.t('etherscanView')}
+                title={this.context.t('genericExplorerView', [
+                  blockExplorerDomain,
+                ])}
               >
                 <i
                   className="fa fa-share-square"
@@ -170,7 +178,9 @@ class AccountList extends Component {
       <div className="hw-list-pagination">
         <button
           className="hw-list-pagination__button"
+          disabled={this.isFirstPage()}
           onClick={this.goToPreviousPage}
+          data-testid="hw-list-pagination__prev-button"
         >
           {`< ${this.context.t('prev')}`}
         </button>
@@ -256,7 +266,7 @@ AccountList.propTypes = {
   onUnlockAccounts: PropTypes.func,
   onCancel: PropTypes.func,
   onAccountRestriction: PropTypes.func,
-  hdPaths: PropTypes.array.isRequired,
+  hdPaths: PropTypes.object.isRequired,
 };
 
 AccountList.contextTypes = {

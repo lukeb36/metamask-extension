@@ -1,56 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { render } from '@testing-library/react';
-import { mount, shallow } from 'enzyme';
-import { MemoryRouter } from 'react-router-dom';
+import { renderHook } from '@testing-library/react-hooks';
+import userEvent from '@testing-library/user-event';
+import { Router } from 'react-router-dom';
 import PropTypes from 'prop-types';
+import { createMemoryHistory } from 'history';
+import configureStore from '../../ui/store/store';
 import { I18nContext, LegacyI18nProvider } from '../../ui/contexts/i18n';
+import { LegacyMetaMetricsProvider } from '../../ui/contexts/metametrics';
 import { getMessage } from '../../ui/helpers/utils/i18n-helper';
 import * as en from '../../app/_locales/en/messages.json';
-
-export function shallowWithContext(jsxComponent) {
-  return shallow(jsxComponent, {
-    context: { t: (str1, str2) => (str2 ? str1 + str2 : str1) },
-  });
-}
-
-export function mountWithRouter(component, store = {}, pathname = '/') {
-  // Instantiate router context
-  const router = {
-    history: new MemoryRouter().history,
-    route: {
-      location: {
-        pathname,
-      },
-      match: {},
-    },
-  };
-
-  const createContext = () => ({
-    context: {
-      router,
-      t: (str) => str,
-      metricsEvent: () => undefined,
-      trackEvent: () => undefined,
-      store,
-    },
-    childContextTypes: {
-      router: PropTypes.object,
-      t: PropTypes.func,
-      metricsEvent: PropTypes.func,
-      trackEvent: PropTypes.func,
-      store: PropTypes.object,
-    },
-  });
-
-  const Wrapper = () => (
-    <MemoryRouter initialEntries={[{ pathname }]} initialIndex={0}>
-      {component}
-    </MemoryRouter>
-  );
-
-  return mount(<Wrapper />, createContext());
-}
 
 export const I18nProvider = (props) => {
   const { currentLocale, current, en: eng } = props;
@@ -77,25 +37,51 @@ I18nProvider.defaultProps = {
   children: undefined,
 };
 
-export function renderWithProvider(component, store) {
+const createProviderWrapper = (store, pathname = '/') => {
+  const history = createMemoryHistory({ initialEntries: [pathname] });
   const Wrapper = ({ children }) =>
     store ? (
       <Provider store={store}>
-        <MemoryRouter initialEntries={['/']} initialIndex={0}>
+        <Router history={history}>
           <I18nProvider currentLocale="en" current={en} en={en}>
-            <LegacyI18nProvider>{children}</LegacyI18nProvider>
+            <LegacyI18nProvider>
+              <LegacyMetaMetricsProvider>{children}</LegacyMetaMetricsProvider>
+            </LegacyI18nProvider>
           </I18nProvider>
-        </MemoryRouter>
+        </Router>
       </Provider>
     ) : (
-      <LegacyI18nProvider>{children}</LegacyI18nProvider>
+      <Router history={history}>
+        <LegacyI18nProvider>
+          <LegacyMetaMetricsProvider>{children}</LegacyMetaMetricsProvider>
+        </LegacyI18nProvider>
+      </Router>
     );
 
   Wrapper.propTypes = {
     children: PropTypes.node,
   };
+  return {
+    Wrapper,
+    history,
+  };
+};
 
-  return render(component, { wrapper: Wrapper });
+export function renderWithProvider(component, store, pathname = '/') {
+  const { history, Wrapper } = createProviderWrapper(store, pathname);
+  return {
+    ...render(component, { wrapper: Wrapper }),
+    history,
+  };
+}
+
+export function renderHookWithProvider(hook, state, pathname = '/') {
+  const store = state ? configureStore(state) : undefined;
+  const { history, Wrapper } = createProviderWrapper(store, pathname);
+  return {
+    ...renderHook(hook, { wrapper: Wrapper }),
+    history,
+  };
 }
 
 export function renderWithLocalization(component) {
@@ -110,4 +96,27 @@ export function renderWithLocalization(component) {
   };
 
   return render(component, { wrapper: Wrapper });
+}
+
+export function renderControlledInput(InputComponent, props) {
+  const ControlledWrapper = () => {
+    const [value, setValue] = useState('');
+    return (
+      <InputComponent
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        {...props}
+      />
+    );
+  };
+  return { user: userEvent.setup(), ...render(<ControlledWrapper />) };
+}
+
+// userEvent setup function as per testing-library docs
+// https://testing-library.com/docs/user-event/intr
+export function renderWithUserEvent(jsx) {
+  return {
+    user: userEvent.setup(),
+    ...render(jsx),
+  };
 }

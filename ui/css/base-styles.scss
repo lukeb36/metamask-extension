@@ -17,30 +17,42 @@ body {
 
 html {
   min-height: 500px;
-}
 
-.mouse-user-styles {
-  button:focus,
-  input:focus,
-  textarea:focus,
-  .unit-input__input,
-  .currency-display__input {
-    outline: none;
+  @include screen-sm-max {
+    &:not([data-theme]) {
+      background-color: var(--color-background-default);
+    }
+  }
+
+  /*
+    Until we get the user's preference from React state,
+    assume the user is in dark mode, because the default
+    theme is system preference
+  */
+  @media (prefers-color-scheme: dark) {
+    &:not([data-theme]) {
+      color: var(--brand-colors-white-white000);
+      background-color: var(--brand-colors-grey-grey900);
+    }
+
+    @include screen-sm-max {
+      &:not([data-theme]) {
+        background-color: var(--brand-colors-grey-grey800);
+      }
+    }
   }
 }
 
 /*
   This error class is used in the following files still:
-  /ui/pages/create-account/connect-hardware/index.js
   /ui/pages/create-account/import-account/json.js
   /ui/pages/create-account/import-account/private-key.js
-  /ui/pages/first-time-flow/create-password/import-with-seed-phrase/import-with-seed-phrase.component.js
-  /ui/pages/keychains/restore-vault.js
 */
 .error {
   color: var(--color-error-default);
   margin-top: 3px;
   margin-bottom: 9px;
+  overflow-wrap: anywhere;
 }
 
 /* stylelint-disable */
@@ -49,10 +61,15 @@ html {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--color-background-alternative);
 
-  @media screen and (max-width: $break-small) {
-    background-color: var(--color-background-default);
+  html[data-theme] & {
+    background: var(--color-background-alternative);
+  }
+
+  @include screen-sm-max {
+    html[data-theme] & {
+      background-color: var(--color-background-default);
+    }
   }
 }
 /* stylelint-enable */
@@ -64,19 +81,6 @@ a {
 
 a:hover {
   color: var(--color-primary-alternative);
-}
-
-input.large-input,
-textarea.large-input {
-  padding: 8px;
-}
-
-input.large-input {
-  height: 36px;
-}
-
-.allcaps {
-  text-transform: uppercase;
 }
 
 .input-label {

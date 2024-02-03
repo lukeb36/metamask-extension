@@ -13,7 +13,7 @@
 }
 
 
-@media screen and (min-width: 1281px) {
+@include screen-lg-min {
   .first-view-main {
     width: 62vw;
   }
@@ -27,7 +27,7 @@
   max-width: initial;
 }
 
-@media only screen and (max-width: $break-small) {
+@include screen-sm-max {
   .import-account {
     margin: 24px;
     display: flex;
@@ -74,25 +74,12 @@
 }
 
 .reveal-seed {
-  &__content {
-    padding: 20px;
+  &__tab {
+    display: flex;
+    flex: 1;
   }
 
-  &__label {
-    padding-bottom: 10px;
-    font-weight: 400;
-    display: inline-block;
+  &__active-tab {
+    color: var(--color-primary-default);
   }
-
-  &__error {
-    @include H6;
-
-    color: var(--color-error-default);
-    padding-top: 5px;
-  }
-}
-
-.page-container__footer-single-button {
-  width: 40%;
-  margin: 8px auto;
 }
